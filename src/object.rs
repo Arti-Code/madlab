@@ -4,11 +4,13 @@ use std::collections::HashMap;
 //use std::f32::consts::PI;
 
 use crate::consts::*;
+use crate::timer::Timer;
 use crate::util::*;
 use crate::world::*;
-use ::rand::{thread_rng, Rng};
 use macroquad::{color, prelude::*};
+use macroquad::rand::*;
 use rapier2d::geometry::*;
+use rapier2d::na::{Vector2, Vector, Unit};
 use rapier2d::parry::shape::*;
 use rapier2d::prelude::*;
 
@@ -27,52 +29,35 @@ pub enum ObjectShape {
 
 pub struct Object {
     pub key: u64,
-    pub object_type: ObjectType,
+    pub object_type: u8,
     pub loc: Vec2,
     pub rot: f32,
     pub shape: ObjectShape,
     color: Color,
-    rigid: Option<RigidBodyHandle>
+    rigid: Option<RigidBodyHandle>,
+    timer: Timer,
+    bounding: Option<PrismaticJoint>,
 }
 
 impl Object {
-    pub fn circle(radius: f32, position: Vec2) -> Self {
+    pub fn circle(radius: f32, position: Vec2, types_num: u8) -> Self {
+        let m_type = gen_range(0, types_num);
         Self {
-            key: thread_rng().gen::<u64>(),
-            object_type: ObjectType::DYNAMIC,
+            key: gen_range(u64::MIN, u64::MAX),
+            object_type: m_type,
             loc: position,
             rot: 0.0,
             shape: ObjectShape::CIRCLE {radius},
-            color: random_color(),
+            color: random_color_num(types_num),
             rigid: None,
-        }
-    }
-    pub fn rect(width: f32, height: f32, position: Vec2) -> Self {
-        Self {
-            key: thread_rng().gen::<u64>(),
-            object_type: ObjectType::DYNAMIC,
-            loc: position,
-            rot: 0.0,
-            shape: ObjectShape::RECT {width, height},
-            color: random_color(),
-            rigid: None,
-        }
-    }
-    pub fn cube(side: f32, position: Vec2) -> Self {
-        Self {
-            key: thread_rng().gen::<u64>(),
-            object_type: ObjectType::DYNAMIC,
-            loc: position,
-            rot: 0.0,
-            shape: ObjectShape::CUBE {side},
-            color: random_color(),
-            rigid: None,
+            timer: Timer::new(PRECISION, true, true, true),
+            bounding: Some(PrismaticJointBuilder::new(Unit::new_normalize(Vector2::new(1.0, 0.0))).limits([6.0, 8.0]).build()),
         }
     }
     pub fn add_physics_space(&mut self, physics_space: &mut World) {
         match self.shape {
             ObjectShape::CIRCLE{radius} => {
-                let handle = physics_space.add_circle_body(self.key,&self.loc, radius);
+                let handle = physics_space.add_circle_body(self.object_type, &self.loc, radius);
                 self.rigid = Some(handle);
             }
             _ => {},
@@ -84,6 +69,9 @@ impl Object {
                 let physics_data = physics.get_physics_data(handle);
                 self.loc = physics_data.position;
                 self.rot = physics_data.rotation;
+                if self.timer.update(dt) {
+                    physics.get_around(handle, false, false);
+                }
                 match physics.rigid_bodies.get_mut(handle) {
                     Some(body) => {
                         self.edges_check(body);
@@ -150,16 +138,19 @@ impl ObjectCollector {
 
     pub fn add_many_elements(&mut self, elements_num: usize, physics_world: &mut World) {
         for _ in 0..elements_num {
-            let element = Object::circle(4.0, random_position(WORLD_W, WORLD_H));
+            let element = Object::circle(PARTICLE_SIZE as f32, random_position(WORLD_W, WORLD_H), 9);
             _ = self.add_element(element, physics_world);
         }
     }
 
     pub fn add_element(&mut self, mut element: Object, physics_world: &mut World) -> u64 {
+        let t = element.object_type;
         let key = element.key;
         match element.shape {
             ObjectShape::CIRCLE {radius} => {
-                let handle = physics_world.add_circle_body(key, &element.loc, radius);
+                let s = gen_range(PARTICLE_SIZE_MIN, PARTICLE_SIZE);
+                element.shape = ObjectShape::CIRCLE { radius: s as f32 };
+                let handle = physics_world.add_circle_body(t, &element.loc, s as f32);
                 element.rigid = Some(handle);
                 self.elements.insert(key, element);
             },
@@ -185,5 +176,27 @@ impl ObjectCollector {
 
     pub fn count(&self) -> usize {
         return self.elements.len();
+    }
+}
+
+pub struct MolecularRules {
+    pub rules: Vec<(u8, Vec<f32>)>,
+}
+
+impl MolecularRules {
+    pub fn new(type_num: usize) -> Self {
+        let mut rules: Vec<(u8, Vec<f32>)> = vec![];
+        for i in 0..type_num {
+            let mut rule: Vec<f32> = vec![]; 
+            for j in 0..type_num {
+                let f = gen_range(-1.0, 1.0);
+                rule.push(f);
+            }
+            let size = gen_range(PARTICLE_SIZE_MIN, PARTICLE_SIZE);
+            rules.push((size, rule));
+        }
+        Self {
+            rules,
+        }
     }
 }

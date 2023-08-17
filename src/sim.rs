@@ -3,11 +3,11 @@
 use crate::camera::*;
 use crate::consts::*;
 use crate::kinetic::*;
-use crate::ui::*;
+//use crate::ui::*;
 use crate::util::*;
 use crate::world::*;
 use crate::object::*;
-use egui_macroquad;
+//use egui_macroquad;
 use macroquad::camera::Camera2D;
 use macroquad::prelude::*;
 use std::f32::consts::PI;
@@ -21,7 +21,7 @@ pub struct Simulation {
     pub running: bool,
     pub sim_time: f64,
     config: SimConfig,
-    pub ui: UISystem,
+    //pub ui: UISystem,
     pub sim_state: SimState,
     pub signals: Signals,
     select_phase: f32,
@@ -44,7 +44,7 @@ impl Simulation {
             running: false,
             sim_time: 0.0,
             config: configuration,
-            ui: UISystem::new(),
+            //ui: UISystem::new(),
             sim_state: SimState::new(),
             signals: Signals::new(),
             selected: 0,
@@ -90,6 +90,7 @@ impl Simulation {
     pub fn update(&mut self) {
         self.signals_check();
         self.update_sim_state();
+        self.check_agents_num();
         self.calc_selection_time();
         self.update_particles();
         self.world.step_physics();
@@ -100,7 +101,7 @@ impl Simulation {
         set_camera(&self.camera);
         clear_background(BLACK);
         draw_rectangle_lines(0.0, 0.0, self.world_size.x, self.world_size.y, 3.0, WHITE);
-        self.draw_grid(50);
+        //self.draw_grid(50);
         self.draw_particles();
     }
 
@@ -143,7 +144,8 @@ impl Simulation {
 
     fn mouse_input(&mut self) {
         if is_mouse_button_released(MouseButton::Left) {
-            if !self.ui.pointer_over {
+            //if !self.ui.pointer_over {
+            if true {
                 self.selected = 0;
                 let (mouse_posx, mouse_posy) = mouse_position();
                 let mouse_pos = Vec2::new(mouse_posx, mouse_posy);
@@ -173,17 +175,17 @@ impl Simulation {
         self.select_phase = self.select_phase % (2.0 * PI);
     }
 
-    pub fn process_ui(&mut self) {
+/*     pub fn process_ui(&mut self) {
         self.ui.ui_process(
             &self.sim_state,
             &mut self.signals,
             &self.camera,
         );
-    }
+    } */
 
-    pub fn draw_ui(&self) {
+/*     pub fn draw_ui(&self) {
         self.ui.ui_draw();
-    }
+    } */
 
     pub fn is_running(&self) -> bool {
         return self.running;
@@ -212,6 +214,7 @@ impl Default for SimConfig {
             agent_vision_range: 0.0,
             sources_init_num: 0,
             sources_min_num: 0,
+
         }
     }
 }
@@ -244,6 +247,7 @@ pub struct SimState {
     pub agents_num: i32,
     pub sources_num: i32,
     pub asteroids_num: i32,
+    pub particles_num: i32,
     pub jets_num: i32,
     pub physics_num: i32,
     pub sim_time: f64,
@@ -259,6 +263,7 @@ impl SimState {
             agents_num: 0,
             sources_num: 0,
             asteroids_num: 0,
+            particles_num: 0,
             jets_num: 0,
             physics_num: 0,
             sim_time: 0.0,

@@ -1,13 +1,8 @@
 //use std::path::Path;
 
-use egui::{self, Context, Style};
-use egui::{Color32, RichText};
-//use egui_extras::image::RetainedImage;
 use egui_macroquad;
-//use image::open;
+use egui_macroquad::egui::*;
 use macroquad::prelude::*;
-//use macroquad::ui::StyleBuilder;
-
 use crate::consts::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use crate::sim::*;
 use crate::util::*;
@@ -19,6 +14,7 @@ pub struct UISystem {
 }
 
 impl UISystem {
+    
     pub fn new() -> Self {
         Self {
             state: UIState::new(),
@@ -52,18 +48,18 @@ impl UISystem {
     }
 
     fn build_top_menu(&mut self, egui_ctx: &Context, sim_name: &str) {
-        egui::TopBottomPanel::top("top_panel")
+        TopBottomPanel::top("top_panel")
             .default_height(100.0)
             .show(egui_ctx, |ui| {
                 if !self.pointer_over {
                     self.pointer_over = ui.ui_contains_pointer();
                 }
-                egui::menu::bar(ui, |ui| {
+                menu::bar(ui, |ui| {
                     ui.heading(RichText::new(sim_name).strong().color(Color32::GREEN));
                     ui.add_space(5.0);
                     ui.separator();
                     ui.add_space(5.0);
-                    egui::menu::menu_button(ui, RichText::new("SIMULATION").strong(), |ui| {
+                    menu::menu_button(ui, RichText::new("SIMULATION").strong(), |ui| {
                         if ui
                             .button(
                                 RichText::new("New Simulation")
@@ -100,7 +96,7 @@ impl UISystem {
                     ui.add_space(10.0);
                     ui.separator();
                     ui.add_space(10.0);
-                    egui::menu::menu_button(ui, RichText::new("TOOLS").strong(), |ui| {
+                    menu::menu_button(ui, RichText::new("TOOLS").strong(), |ui| {
                         if ui
                             .button(RichText::new("Monitor").strong().color(Color32::WHITE))
                             .clicked()
@@ -129,7 +125,7 @@ impl UISystem {
                     ui.add_space(10.0);
                     ui.separator();
                     ui.add_space(10.0);
-                    egui::menu::menu_button(ui, RichText::new("ABOUT").strong(), |ui| {
+                    menu::menu_button(ui, RichText::new("ABOUT").strong(), |ui| {
                         if ui
                             .button(RichText::new("Credits").strong().color(Color32::WHITE))
                             .clicked()
@@ -183,7 +179,7 @@ impl UISystem {
                 Some(_) => {},
                 None => {},
             }
-            egui::Window::new("MONITOR")
+            Window::new("MONITOR")
                 .default_pos((5.0, 5.0))
                 .default_width(125.0)
                 .show(egui_ctx, |ui| {
@@ -203,7 +199,7 @@ impl UISystem {
     fn build_debug_window(&self, egui_ctx: &Context, camera2d: &Camera2D) {
         if self.state.mouse {
             let (mouse_x, mouse_y) = mouse_position();
-            egui::Window::new("DEBUG INFO")
+            Window::new("DEBUG INFO")
                 .default_pos((375.0, 5.0))
                 .default_width(175.0)
                 .show(egui_ctx, |ui| {
@@ -237,7 +233,7 @@ impl UISystem {
 
     fn build_quit_window(&mut self, egui_ctx: &Context) {
         if self.state.quit {
-            egui::Window::new("QUIT")
+            Window::new("QUIT")
                 .default_pos((SCREEN_WIDTH / 2.0 - 65.0, SCREEN_HEIGHT / 4.0))
                 .default_width(125.0)
                 .show(egui_ctx, |ui| {
@@ -267,7 +263,7 @@ impl UISystem {
     fn build_new_sim_window(&mut self, egui_ctx: &Context, signals: &mut Signals) {
         if self.state.new_sim {
             //let mut sim_name: String = String::new();
-            egui::Window::new("NEW SIMULATION")
+            Window::new("NEW SIMULATION")
                 .default_pos((SCREEN_WIDTH / 2.0 - 65.0, SCREEN_HEIGHT / 4.0))
                 .default_width(125.0)
                 .show(egui_ctx, |ui| {
@@ -276,7 +272,7 @@ impl UISystem {
                     });
                     ui.horizontal(|txt| {
                         let response =
-                            txt.add(egui::widgets::TextEdit::singleline(&mut self.temp_sim_name));
+                            txt.add(widgets::TextEdit::singleline(&mut self.temp_sim_name));
                         if response.gained_focus() {
                             self.temp_sim_name = String::new();
                         }
@@ -285,7 +281,7 @@ impl UISystem {
                             //println!("{:?}", sim_name);
                             //println!("{:?}", self.temp_sim_name);
                         }
-                        if response.lost_focus() && txt.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        if response.lost_focus() && txt.input(|i| i.key_pressed(Key::Enter)) {
                             self.state.new_sim = false;
                             signals.new_sim = true;
                             signals.new_sim_name = String::from(&self.temp_sim_name);
@@ -319,25 +315,30 @@ impl UISystem {
 
     fn build_create_window(&self, egui_ctx: &Context, signals: &mut Signals) {
         if self.state.create {
-            egui::Window::new("CREATE")
+            let mut rect_w: u32 = 25;
+            let mut rect_h: u32 = 25;
+            Window::new("CREATE")
                 .default_pos((600.0, 5.0))
                 .default_width(275.0)
                 .min_height(250.0)
                 .show(egui_ctx, |ui| {
-                    ui.horizontal(|head| {
-                        head.heading("CREATE NEW");
-                    });
                     ui.horizontal(|mid| {
-                        mid.style_mut().visuals.extreme_bg_color = Color32::BLUE;
-                        //mid.set_min_height(500.0);
-                        mid.columns(3, |columns| {
-                            //columns[0].set_height(400.0);
-                            //columns[1].set_height(400.0);
-                            //columns[2].set_height(400.0);
-                            if columns[0]
-                                .button(RichText::new("PARTICLE").strong().color(Color32::WHITE)).clicked()
-                            {
+                        mid.heading("CREATE PARTICLES");
+                        mid.columns(1, |columns| {
+                            if columns[0].button(RichText::new("PARTICLE").strong().color(Color32::WHITE)).clicked() {
                                 signals.spawn_particles = true;
+                            }
+                        })
+                    });
+                    ui.separator();
+                    ui.horizontal(|mid| {
+                        mid.heading("CREATE RECT");
+                        mid.columns(1, |columns| {
+                            columns[0].add(Slider::new(&mut rect_w, 1..=400).text("width"));
+                            columns[0].add(Slider::new(&mut rect_h, 1..=400).text("height"));
+                            columns[0].label(format!("width: {} | height {}", rect_w, rect_h));
+                            if columns[0].button(RichText::new("RECTANGLE").strong().color(Color32::WHITE)).clicked() {
+                                signals.spawn_rect = true;
                             }
                         })
                     });

@@ -1,14 +1,17 @@
 //use crossbeam::channel::{Receiver, Sender};
 //use crossbeam::*;
 use crate::consts::*;
+use crate::object::MolecularRules;
 use crate::util::*;
 use macroquad::prelude::*;
+use macroquad::rand::*;
 use nalgebra::Point2;
 use rapier2d::{na::Vector2, prelude::*};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
 pub struct World {
+    pub molecular_rules: MolecularRules,
     pub rigid_bodies: RigidBodySet,
     pub colliders: ColliderSet,
     gravity: Vector2<f32>,
@@ -31,6 +34,7 @@ impl World {
         //let (contact_force_send, contact_force_recv) = crossbeam::channel::unbounded();
         //let event_handler = ChannelEventCollector::new(collision_send, contact_force_send);
         Self {
+            molecular_rules: MolecularRules::new(9),
             rigid_bodies: RigidBodySet::new(),
             colliders: ColliderSet::new(),
             gravity: Vector2::new(0.0, 0.0),
@@ -52,66 +56,23 @@ impl World {
         self.query_pipeline.update(&self.rigid_bodies, &self.colliders);
     } */
 
-    pub fn add_circle_body(&mut self, key: u64, position: &Vec2, radius: f32) -> RigidBodyHandle {
+    pub fn add_circle_body(&mut self, key: u8, position: &Vec2, radius: f32) -> RigidBodyHandle {
         let iso = Isometry::new(Vector2::new(position.x, position.y), 0.0);
         let rigid = RigidBodyBuilder::dynamic().position(iso)
-            .linear_damping(0.0).angular_damping(0.0)
+            .linear_damping(0.8).angular_damping(1.0)
             .user_data(key as u128).build();
-        let mut collider = ColliderBuilder::ball(radius).density(1.0).restitution(1.0).friction(0.0)
-            .active_collision_types(ActiveCollisionTypes::default()).active_events(ActiveEvents::COLLISION_EVENTS)
+        let collider = ColliderBuilder::ball(radius).density(1.0).restitution(0.0).friction(1.0)
+            .active_collision_types(ActiveCollisionTypes::empty()).active_events(ActiveEvents::COLLISION_EVENTS)
             .build();
         let rb_handle = self.rigid_bodies.insert(rigid);
         let coll_handle = self.colliders.insert_with_parent(collider,rb_handle, &mut self.rigid_bodies);
+        let field = ColliderBuilder::ball(radius*FIELD).density(0.0).sensor(true).build();
+        self.colliders.insert_with_parent(field,rb_handle, &mut self.rigid_bodies);
         let object = self.rigid_bodies.get_mut(rb_handle).unwrap();
         let v = random_unit_vec2();
-        object.set_linvel(Vector2::new(v.x, v.y)*PARTICLE_SPEED, true);
+        //object.set_linvel(Vector2::new(v.x, v.y)*PARTICLE_SPEED, true);
         return rb_handle;
     }
-
-    pub fn add_poly_body(&mut self, key: u64, position: &Vec2, points: Vec<Point2<f32>>) -> RigidBodyHandle {
-        let iso = Isometry::new(Vector2::new(position.x, position.y), 0.0);
-        let poly = RigidBodyBuilder::dynamic().position(iso)
-            .linear_damping(0.0).angular_damping(0.0).can_sleep(true)
-            .user_data(key as u128).build();
-        let collider = ColliderBuilder::convex_polyline(points).unwrap()
-            .restitution(0.5).friction(0.6)
-            .active_collision_types(ActiveCollisionTypes::default() | ActiveCollisionTypes::DYNAMIC_DYNAMIC, )
-            .active_events(ActiveEvents::COLLISION_EVENTS).density(1.0).build();
-        let rb_handle = self.rigid_bodies.insert(poly);
-        let coll_handle = self.colliders.insert_with_parent(collider, rb_handle, &mut self.rigid_bodies);
-        let obj = self.rigid_bodies.get_mut(rb_handle).unwrap();
-        //obj.add
-        let imp = Vector2::new(rand::gen_range(-1.0, 1.0), rand::gen_range(-1.0, 1.0))*1.0;
-        //obj.apply_impulse(imp, true);
-        obj.set_linvel(imp, true);
-        return rb_handle;
-    }
-
-    pub fn add_jet_hull(&mut self, key: u64, position: &Vec2, points: Vec<Point2<f32>>) -> RigidBodyHandle {
-        let iso = Isometry::new(Vector2::new(position.x, position.y), 0.0);
-        let poly = RigidBodyBuilder::dynamic().position(iso)
-            .linear_damping(0.05).angular_damping(0.5).can_sleep(false)
-            .user_data(key as u128).build();
-        let collider = ColliderBuilder::convex_polyline(points).expect("cant build hull collider")
-            .active_collision_types(ActiveCollisionTypes::default() | ActiveCollisionTypes::DYNAMIC_DYNAMIC)
-            .active_events(ActiveEvents::COLLISION_EVENTS).density(1.0).build();
-        let rb_handle = self.rigid_bodies.insert(poly);
-        let coll_handle = self.colliders.insert_with_parent(collider, rb_handle, &mut self.rigid_bodies);
-        let obj = self.rigid_bodies.get_mut(rb_handle).expect("can't get mut hull collider");
-        return rb_handle;
-    }
-
-    /* fn get_object_handle_from_collider(&self, collider_handle: ColliderHandle) -> Option<RigidBodyHandle> {
-        let collider = self.colliders.get(collider_handle);
-        match collider {
-            None => {
-                return None;
-            },
-            Some(collider) => {
-                return collider.parent();
-            }
-        }
-    } */
 
     pub fn remove_physics_object(&mut self, body_handle: RigidBodyHandle) {
         _ = self.rigid_bodies.remove(body_handle, &mut self.island_manager, &mut self.colliders, &mut self.impulse_joint_set, &mut self.multibody_joint_set, true, );
@@ -209,10 +170,23 @@ impl World {
         }
     }
 
-    pub fn get_around(&mut self, agent_body_handle: RigidBodyHandle) {
+    pub fn get_around(&mut self, agent_body_handle: RigidBodyHandle, is_negative: bool, is_neutrino: bool) {
         //let rbm = &mut self.rigid_bodies;
         let mut action = Vec2::ZERO;
+        let size1 = 1.0;
+        let field = FIELD * size1;
         let rb = self.rigid_bodies.get(agent_body_handle).unwrap();
+        let type1 = rb.user_data as u8;
+        //let mut collider1: &Collider = &ColliderBuilder::ball(1.).build(); 
+        /* for c in rb.colliders().iter() {
+            match self.colliders.get(*c) {
+                None => {continue;},
+                Some(c1) => if !c1.is_sensor() {
+                    size1 = c1.shape().as_ball().unwrap().radius;
+                },
+                Some(_) => {continue;}
+            };
+        } */
         let pos1 = matric_to_vec2(rb.position().translation);
         let dist = f32::INFINITY;
         //let collider = ColliderBuilder::ball(32.0).build();
@@ -222,6 +196,7 @@ impl World {
             exclude_rigid_body: Some(agent_body_handle),
             ..Default::default()
         };
+        let mut handlers: Vec<RigidBodyHandle> = vec![];
         for c in rb.colliders() {
             let collider = self.colliders.get(*c).unwrap();
             if !collider.is_sensor() {
@@ -229,12 +204,52 @@ impl World {
             }
             self.query_pipeline.intersections_with_shape(&self.rigid_bodies, &self.colliders, rb.position(), collider.shape(), filter,
                 |collided| {
+                    let rb2 = self.get_body_handle_from_collider(collided);
+                    match rb2 {
+                        Some(handle) => {
+                            match self.rigid_bodies.get(handle) {
+                                Some(rigid2) => {
+                                    let type2 = rigid2.user_data as u8;
+                                    let pos2 = matric_to_vec2(rigid2.position().translation);
+                                    let dist = pos2.distance(pos1);
+                                    let rel_dist = dist/field;
+                                    if rel_dist >= 0.5 {
+                                        let dir = (pos2-pos1).normalize_or_zero();
+                                        let act = self.molecular_rules.rules[type1 as usize].1[type2 as usize];
+                                        action += dir * act * (size1 as f32) * GRAV/(rel_dist);
+                                    } else {
+                                        if rel_dist <= 0.1 {
+                                            if self.impulse_joint_set.joints_between(agent_body_handle, handle).count() == 0 {
+                                                handlers.push(handle);
+                                            }
+                                        } else if self.impulse_joint_set.joints_between(agent_body_handle, handle).count() == 0 {
+                                            let dir = (pos2-pos1).normalize_or_zero();
+                                            let act = self.molecular_rules.rules[type1 as usize].1[type2 as usize];
+                                            action += -4. * (dir * act * size1 as f32 * GRAV/rel_dist);
+                                        }
+                                    }
+                                },
+                                None => {},
+                            }
+                        },
+                        None => {},
+                    }
                     return true;
                 },
-            );
+            );    
         }
-        //let rbm = self.rigid_bodies.get_mut(agent_body_handle).unwrap();
-        //rbm.apply_impulse(Vector2::new(action.x, action.y), true);
+        for h in handlers.iter() {
+            let mut x = Vector::x_axis();
+            if gen_range(0, 2) == 1 {
+                x = Vector::y_axis();
+            }
+            let joint = PrismaticJointBuilder::new(x).limits([10.0, 20.0]).build();
+            self.impulse_joint_set.insert(agent_body_handle, *h, joint, true);
+            info!("JOINED!")
+        }
+        let rbm = self.rigid_bodies.get_mut(agent_body_handle).unwrap();
+        rbm.reset_forces(true);
+        rbm.add_force(Vector2::new(action.x, action.y), true);
     }
 }
 

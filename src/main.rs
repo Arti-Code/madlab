@@ -5,7 +5,7 @@ mod consts;
 mod kinetic;
 mod sim;
 mod timer;
-mod ui;
+//mod ui;
 mod util;
 mod world;
 mod object;
@@ -38,14 +38,14 @@ async fn main() {
 
     loop {
         sim.input();
-        sim.process_ui();
+        //sim.process_ui();
         if sim.is_running() {
             sim.update();
             sim.draw();
         } else {
             sim.signals_check();
         }
-        sim.draw_ui();
+        //sim.draw_ui();
         next_frame().await;
     }
 }

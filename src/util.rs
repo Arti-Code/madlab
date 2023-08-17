@@ -1,10 +1,10 @@
 //#![allow(unused)]
 
 use std::f32::consts::PI;
-
 use crate::consts::*;
 use macroquad::{color, prelude::*};
-use nalgebra::*;
+use rapier2d::na::*;
+
 
 pub fn random_unit() -> f32 {
     return rand::gen_range(-1.0, 1.0);
@@ -28,10 +28,20 @@ pub fn random_unit_vec2() -> Vec2 {
 }
 
 pub fn random_color() -> color::Color {
-    let colors = vec![RED, GREEN, BLUE, YELLOW, ORANGE, GRAY, SKYBLUE, LIME];
+    let colors = vec![RED, GREEN, BLUE, YELLOW, GRAY/* , ORANGE, GRAY, SKYBLUE, LIME */];
     let num = colors.len();
     let c = rand::gen_range(0, num);
     return colors[c];
+}
+
+pub fn random_color_num(mut num: u8) -> color::Color {
+    let colors = vec![RED, GREEN, BLUE, YELLOW, ORANGE, LIME, MAGENTA, PINK, VIOLET, SKYBLUE];
+    let num_max = colors.len();
+    if num >= num_max as u8 {
+        num = (num_max - 1) as u8;
+    }
+    let c = rand::gen_range(0, num);
+    return colors[c as usize];
 }
 
 pub fn random_color5() -> color::Color {
@@ -43,7 +53,7 @@ pub fn random_color5() -> color::Color {
 
 pub fn angle2vec2(angle: f32) -> Vec2 {
     let (x, y) = angle.sin_cos();
-    let mut v = Vec2::new(x, y).normalize_or_zero();
+    let v = Vec2::new(x, y).normalize_or_zero();
     return v;
 }
 
@@ -63,7 +73,7 @@ pub fn wrap_around(v: &Vec2) -> Vec2 {
     return vr;
 }
 
-pub fn make_isometry(posx: f32, posy: f32, rotation: f32) -> nalgebra::Isometry2<f32> {
+pub fn make_isometry(posx: f32, posy: f32, rotation: f32) -> Isometry2<f32> {
     let iso = Isometry2::new(Vector2::new(posx, posy), rotation);
     return iso;
 }
@@ -116,6 +126,8 @@ pub fn vec2_to_point2_collection(vec2_list: &Vec<Vec2>) -> Vec<Point2<f32>> {
 //?         [[[SIGNALS]]]
 pub struct Signals {
     pub spawn_particles: bool,
+    pub creating_rect: bool,
+    pub spawn_rect:  bool,
     pub new_sim: bool,
     pub new_sim_name: String,
 }
@@ -126,6 +138,8 @@ impl Signals {
             spawn_particles: false,
             new_sim: false,
             new_sim_name: String::new(),
+            creating_rect: false,
+            spawn_rect: false,
         }
     }
 }
