@@ -9,7 +9,7 @@ pub const WORLD_H: f32 = 900.0;
 pub const PARTICLE_SIZE_MIN: u8 = 3;
 pub const PARTICLE_SIZE: u8 = 4;
 pub const PARTICLE_SPEED: f32 = 50.0;
-pub const PARTICLES_NUM: i32 = 96;
+pub const PARTICLES_NUM: i32 = 2048;
 
 pub const JET_IMPULSE: f32 = 800.0;
 pub const JET_TORQUE: f32 = 2400.0;

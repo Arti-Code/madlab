@@ -15,7 +15,49 @@ use rapier2d::parry::shape::*;
 use rapier2d::prelude::*;
 
 
-pub struct Object {
+pub trait Physical {
+    fn new(position: Vec2, shape: SharedShape, stroke: Option<Color>, fill: Option<Color>, physics: &mut World) -> Self;
+    fn update(&mut self, physics: &mut World);
+    fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, physics: &mut World) -> RigidBodyHandle;
+    fn draw(&self);
+}
+
+pub struct Element {
+    pub pos: Vec2,
+    pub rot: f32,
+    pub shape: SharedShape,
+    stroke_color: Option<Color>,
+    fill_color: Option<Color>,
+    rigid_handle: RigidBodyHandle,
+}
+
+impl Physical for Element {
+    fn new(position: Vec2, shape: SharedShape, stroke: Option<Color>, fill: Option<Color>, physics: &mut World) -> Self {
+        let rbh = Self::add_to_physic_space(&position, 0.0, shape.clone(), physics);
+        Self { pos: position, rot: 0.0, shape: shape, stroke_color: stroke, fill_color: fill, rigid_handle: rbh }
+    }
+
+    fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, physics: &mut World) -> RigidBodyHandle {
+        let physics_properities = PhysicsProperities::default();
+        let rbh = physics.add_dynamic(position, rotation, shape, physics_properities);
+        return rbh;
+    } 
+
+    fn update(&mut self, physics: &mut World) {
+        todo!()
+    }
+
+    fn draw(&self) {
+        todo!()
+    }
+
+}
+
+impl Element {
+
+}
+
+/* pub struct Object {
     pub key: u64,
     pub loc: Vec2,
     pub rot: f32,
@@ -144,4 +186,4 @@ impl ObjectCollector {
     pub fn count(&self) -> usize {
         return self.elements.len();
     }
-}
+} */

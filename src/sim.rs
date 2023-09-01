@@ -69,11 +69,11 @@ impl Simulation {
         self.select_phase = 0.0;
         self.mouse_state = MouseState { pos: Vec2::NAN };
         self.running = true;
-        //self.init();
+        self.init();
     }
 
     pub fn init(&mut self) {
-
+        self.object_collector.add_many_elements(PARTICLES_NUM as usize, &mut self.world);
     }
 
     pub fn autorun_new_sim(&mut self) {
