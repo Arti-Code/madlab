@@ -1,15 +1,16 @@
 #![allow(unused)]
-
+use crate::element::*;
 use crate::camera::*;
-use crate::consts::*;
-use crate::kinetic::*;
-//use crate::ui::*;
+use crate::globals::*;
+//use crate::kinetic::*;
+use crate::timer::Timer;
+use crate::ui::*;
 use crate::util::*;
 use crate::world::*;
-use crate::object::*;
 //use egui_macroquad;
 use macroquad::camera::Camera2D;
 use macroquad::prelude::*;
+use std::collections::VecDeque;
 use std::f32::consts::PI;
 
 pub struct Simulation {
@@ -27,7 +28,16 @@ pub struct Simulation {
     select_phase: f32,
     pub selected: u64,
     pub mouse_state: MouseState,
-    pub object_collector: ObjectCollector,
+    //pub object_collector: ObjectCollector,
+    pub elements: ElementCollector,
+    info_time: Timer,
+    info: bool,
+    total_eng: f32,
+    ui: UI,
+    fps: i32,
+    fps2: VecDeque<i32>,
+    avg: i32,
+    fps_timer: Timer,
 }
 
 impl Simulation {
@@ -41,16 +51,24 @@ impl Simulation {
             font,
             world: World::new(),
             camera: create_camera(),
-            running: false,
+            running: true,
             sim_time: 0.0,
             config: configuration,
             //ui: UISystem::new(),
             sim_state: SimState::new(),
-            signals: Signals::new(),
+            signals: Signals::default(),
             selected: 0,
             select_phase: 0.0,
             mouse_state: MouseState { pos: Vec2::NAN },
-            object_collector: ObjectCollector::new(),
+            elements: ElementCollector::new(),
+            info_time: Timer::new(1.0, true, true, false),
+            info: true,
+            total_eng: 0.0,
+            ui: UI::new(),
+            fps: 0,
+            fps2: [30; 30].into(),
+            avg: 0,
+            fps_timer: Timer::new(1.0, true, true, false),
         }
     }
 
@@ -60,11 +78,12 @@ impl Simulation {
             None => String::new(),
         };
         self.world = World::new();
-        self.object_collector = ObjectCollector::new();
+        self.elements = ElementCollector::new();
+        //self.elements = ObjectCollector::new();
         self.sim_time = 0.0;
         self.sim_state = SimState::new();
         self.sim_state.sim_name = String::from(&self.simulation_name);
-        self.signals = Signals::new();
+        self.signals = Signals::default();
         self.selected = 0;
         self.select_phase = 0.0;
         self.mouse_state = MouseState { pos: Vec2::NAN };
@@ -73,22 +92,22 @@ impl Simulation {
     }
 
     pub fn init(&mut self) {
-        self.object_collector.add_many_elements(PARTICLES_NUM as usize, &mut self.world);
-    }
-
-    pub fn autorun_new_sim(&mut self) {
-        self.signals.new_sim = true;
-        self.signals.new_sim_name = "Simulation".to_string();
+        self.elements.add_many_elements(ELEMENT_NUM as usize, &mut self.world);
+        //self.elements.add_motor(Vec2::new(500.0, 400.0), &mut self.world)
     }
 
     fn update_particles(&mut self) {
-        for (id, elem) in self.object_collector.get_iter_mut() {
-            elem.update(self.sim_state.dt, &mut self.world);
+        for (id, elem) in self.elements.get_iter_mut() {
+            elem.update(&mut self.world);
         }
     }
 
     pub fn update(&mut self) {
+        //if self.info_time.update(get_frame_time()) {
+        //    self.total_eng = self.world.get_total_kinetic_eng();
+        //}
         self.signals_check();
+        self.process_ui();
         self.update_sim_state();
         self.check_agents_num();
         self.calc_selection_time();
@@ -96,18 +115,30 @@ impl Simulation {
         self.world.step_physics();
     }
 
-    pub fn draw(&self) {
+    pub fn draw(&mut self) {
         //set_default_camera();
         set_camera(&self.camera);
         clear_background(BLACK);
         draw_rectangle_lines(0.0, 0.0, self.world_size.x, self.world_size.y, 3.0, WHITE);
         //self.draw_grid(50);
         self.draw_particles();
+        self.draw_info();
+        self.draw_ui();
+    }
+
+    fn draw_info(&mut self) {
+        if self.fps_timer.update(get_frame_time()) {
+            self.fps = get_fps();
+            let sum: i32 = self.fps2.iter().sum();
+            self.avg = sum/(self.fps2.len() as i32);
+        }
+        self.fps2.push_back(get_fps());
+        self.fps2.pop_front();
     }
 
     fn draw_particles(&self) {
-        for (id, p) in self.object_collector.get_iter() {
-            p.draw();
+        for (id, p) in self.elements.get_iter() {
+            p.draw(&self.world);
         }
     }
 
@@ -125,16 +156,15 @@ impl Simulation {
     }
 
     pub fn signals_check(&mut self) {
-        if self.signals.spawn_particles {
-            self.object_collector.add_many_elements(10, &mut self.world);
-            self.signals.spawn_particles = false;
+        let mut signals = get_signals();
+        if signals.restart {
+            self.reset_sim(None);
+            signals.restart = false;
         }
-        if self.signals.new_sim {
-            self.signals.new_sim = false;
-            //if !self.signals.new_sim_name.is_empty() {
-            self.reset_sim(Some(&self.signals.new_sim_name.to_owned()));
-            //}
+        if self.signals.quit {
+            std::process::exit(0);
         }
+        set_global_signals(signals);
     }
 
     pub fn input(&mut self) {
@@ -165,8 +195,8 @@ impl Simulation {
     }
 
     fn check_agents_num(&mut self) {
-        if self.object_collector.count() < PARTICLES_NUM as usize {
-            self.object_collector.add_many_elements(1, &mut self.world);
+        if self.elements.count() < ELEMENT_NUM as usize {
+            self.elements.add_many_elements(1, &mut self.world);
         }
     }
 
@@ -175,17 +205,13 @@ impl Simulation {
         self.select_phase = self.select_phase % (2.0 * PI);
     }
 
-/*     pub fn process_ui(&mut self) {
-        self.ui.ui_process(
-            &self.sim_state,
-            &mut self.signals,
-            &self.camera,
-        );
-    } */
+    pub fn process_ui(&mut self) {
+        self.ui.process(self.fps, self.avg);
+    }
 
-/*     pub fn draw_ui(&self) {
-        self.ui.ui_draw();
-    } */
+    pub fn draw_ui(&self) {
+        self.ui.draw();
+    }
 
     pub fn is_running(&self) -> bool {
         return self.running;

@@ -1,7 +1,8 @@
 //#![allow(unused)]
 
+use std::time::{UNIX_EPOCH, Duration};
 use std::f32::consts::PI;
-use crate::consts::*;
+use crate::globals::*;
 use macroquad::{color, prelude::*};
 use rapier2d::na::*;
 
@@ -44,6 +45,13 @@ pub fn random_color_num(mut num: u8) -> color::Color {
     return colors[c as usize];
 }
 
+pub fn generate_seed() -> u64 {
+    let t0 = UNIX_EPOCH.elapsed().unwrap().as_secs();
+    let tx = (t0%100).pow(2);
+    let t1 = (t0 as f32).sqrt() as u64;
+    return t1*tx;
+}
+
 pub fn random_color5() -> color::Color {
     let colors = [RED, BLUE, GREEN, YELLOW, WHITE];
     //let num = colors.len();
@@ -78,7 +86,7 @@ pub fn make_isometry(posx: f32, posy: f32, rotation: f32) -> Isometry2<f32> {
     return iso;
 }
 
-pub fn matric_to_vec2(translation: Translation<f32, 2>) -> Vec2 {
+pub fn matrix_to_vec2(translation: Translation<f32, 2>) -> Vec2 {
     return Vec2::new(translation.x, translation.y);
 }
 
@@ -124,7 +132,7 @@ pub fn vec2_to_point2_collection(vec2_list: &Vec<Vec2>) -> Vec<Point2<f32>> {
 }
 
 //?         [[[SIGNALS]]]
-pub struct Signals {
+/* pub struct Signals {
     pub spawn_particles: bool,
     pub creating_rect: bool,
     pub spawn_rect:  bool,
@@ -143,3 +151,4 @@ impl Signals {
         }
     }
 }
+ */

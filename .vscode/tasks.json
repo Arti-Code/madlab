@@ -19,7 +19,8 @@
 				"$rustc"
 			],
 			"group": "build",
-			"label": "rust: cargo build"
+			"label": "rust: cargo build (--release)",
+			"args": ["--release"]
 		},
 		{
 			"type": "cargo",
