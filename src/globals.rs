@@ -2,10 +2,10 @@
 use macroquad::experimental::collections::storage;
 
 
-pub const SCREEN_WIDTH: f32 = 1200.0;
-pub const SCREEN_HEIGHT: f32 = 900.0;
-pub const WORLD_W: f32 = 8000.0;
-pub const WORLD_H: f32 = 6000.0;
+pub const SCREEN_WIDTH: f32 = 1920.0;
+pub const SCREEN_HEIGHT: f32 = 1080.0;
+pub const WORLD_W: f32 = 6000.0;
+pub const WORLD_H: f32 = 4500.0;
 
 pub const ELEMENT_SIZE: f32 = 3.0;
 pub const ELEMENT_NUM: i32 = 5000;
@@ -17,8 +17,8 @@ pub const SCREEN_RATIO: f32 = SCREEN_WIDTH / SCREEN_HEIGHT;
 pub const GRAV: f32 = 0.0;
 pub const FIELD: f32 = 100.0;
 
-pub const PRECISION: f32 = 0.1;
-pub const FORCE: f32 = 125.0;
+pub const PRECISION: f32 = 0.05;
+pub const FORCE: f32 = 250000.0;
 pub const TYPES_NUM: u64 = 19;
 
 
@@ -77,6 +77,7 @@ impl Default for Settings {
 pub struct Signals {
     pub quit: bool,
     pub restart: bool,
+    pub shuffle_interactions: bool,
 }
 
 impl Default for Signals {
@@ -84,6 +85,7 @@ impl Default for Signals {
         Self {
             quit: false,
             restart: false,
+            shuffle_interactions: false,
         }
     }
 }

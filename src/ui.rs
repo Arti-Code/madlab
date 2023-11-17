@@ -1,10 +1,12 @@
-use egui_macroquad::{*, egui::{Context, TopBottomPanel, RichText, Color32, menu, Align2, Label}};
+use egui_macroquad::{*, egui::{Context, TopBottomPanel, RichText, Color32, menu, Align2, Label, Slider, Window}};
+use egui_macroquad::egui::Vec2 as UIVec2;
 use macroquad::time::{get_frame_time, get_fps}; 
 use crate::globals::*;
 
 pub struct UI {
     pointer_over: bool,
     monitor_win: bool,
+    settings_win: bool,
 }
 
 
@@ -14,6 +16,7 @@ impl UI {
         Self {
             pointer_over: false,
             monitor_win: false,
+            settings_win: false,
         }
     }
 
@@ -22,6 +25,7 @@ impl UI {
             self.pointer_over = egui_ctx.is_pointer_over_area();
             self.build_top_menu(egui_ctx);
             self.build_monitor_win(egui_ctx, fps, fps2);
+            self.build_settings_win(egui_ctx);
         });
     }
 
@@ -54,8 +58,15 @@ impl UI {
                 });
 
                 menu::menu_button(ui, RichText::new("WORLD").strong(), |ui| {
+                    if ui.button(RichText::new("Shuffle interactions").strong().color(Color32::GREEN)).clicked() {
+                        signals.shuffle_interactions = true;
+                        set_global_signals(signals);
+                    }
                     if ui.button(RichText::new("Monitor").strong().color(Color32::GREEN)).clicked() {
                         self.monitor_win = !self.monitor_win;
+                    }
+                    if ui.button(RichText::new("Settings").strong().color(Color32::GREEN)).clicked() {
+                        self.settings_win = !self.settings_win;
                     }
                 });
             })
@@ -75,4 +86,33 @@ impl UI {
         }
     }
 
+    fn build_settings_win(&mut self, egui_ctx: &Context) {
+        if !self.settings_win {
+            return;
+        }
+        let mut settings = get_settings();
+        egui::Window::new("SETTINGS").id("settings_win".into()).default_pos((SCREEN_WIDTH/2., SCREEN_HEIGHT/2.)).fixed_size([380., 400.])
+        .title_bar(true).show(egui_ctx, |ui| {
+            ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut field_radius = settings.field;
+                column[0].label(RichText::new("FIELD RADIUS").color(Color32::WHITE).strong());
+                if column[1].add(Slider::new(&mut field_radius, 0.0..=500.0).step_by(10.0)).changed() {
+                    settings.field = field_radius;
+                    signals.new_settings = true;
+                }
+            });
+            ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut field_radius = settings.field;
+                column[0].label(RichText::new("FORCE").color(Color32::WHITE).strong());
+                if column[1].add(Slider::new(&mut field_radius, 0.0..=500.0).step_by(10.0)).changed() {
+                    settings.field = field_radius;
+                    signals.new_settings = true;
+                }
+            });
+        });
+    }
 }

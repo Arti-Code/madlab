@@ -60,7 +60,7 @@ impl Physical for Element {
     }
 
     fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, random_vel: bool, physics: &mut World, p_type: u128) -> RigidBodyHandle {
-        let physics_properties = PhysicsProperties::new(0.1, 0.25, 1.0, 0.2, 0.3);
+        let physics_properties = PhysicsProperties::new(0.1, 0.25, 1.0, 0.6, 0.3);
         let rbh = physics.add_dynamic(position, rotation, shape, physics_properties, random_vel, p_type);
         return rbh;
     } 

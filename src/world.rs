@@ -37,11 +37,20 @@ impl World {
         //let (collision_send, collision_recv) = crossbeam::channel::unbounded();
         //let (contact_force_send, contact_force_recv) = crossbeam::channel::unbounded();
         //let event_handler = ChannelEventCollector::new(collision_send, contact_force_send);
+        let solver_params = IntegrationParameters {
+            interleave_restitution_and_friction_resolution: false,
+            max_ccd_substeps: 1,
+            max_stabilization_iterations: 1,
+            max_velocity_iterations: 1,
+            dt: 1./30.,
+            ..Default::default()
+        };
+
         Self {
             rigid_bodies: RigidBodySet::new(),
             colliders: ColliderSet::new(),
             gravity: Vector2::new(0.0, 0.0),
-            integration_parameters: IntegrationParameters::default(),
+            integration_parameters: solver_params,   //IntegrationParameters::default(),
             physics_pipeline: PhysicsPipeline::new(),
             query_pipeline: QueryPipeline::new(),
             island_manager: IslandManager::new(),
@@ -56,6 +65,10 @@ impl World {
             grav_time: Timer::new(0.66, true, true, false),
             types: PhysicsTypes::random(),
         }
+    }
+
+    pub fn random_types(&mut self) {
+        self.types = PhysicsTypes::random();
     }
 
     fn update_grav(&mut self) {
@@ -173,8 +186,11 @@ impl World {
     }
 
     pub fn field_react(&mut self, position: Vec2, _radius: f32, p_type: u128, handle: RigidBodyHandle) {
+        let settings = get_settings();
+        let field = settings.field;
+        let force = settings.force;
         let iso0 = make_isometry(position.x, position.y, 0.0);
-        let field = Ball::new(FIELD);
+        let field = Ball::new(field);
         let filter = QueryFilter {
             flags: QueryFilterFlags::ONLY_DYNAMIC | QueryFilterFlags::EXCLUDE_SENSORS,
             groups: None,
@@ -194,17 +210,19 @@ impl World {
                 let a = particle_type.actions[t1 as usize];
                 let pos2 = matrix_to_vec2(particle1.position().translation);
                 let dist = position.distance(pos2);
-                //let rel_dist = 1.0 - dist/FIELD;
-                let rel_dist = dist/FIELD;
+                //let rel_dist = 1.0 - dist/field;
+                let rel_dist = dist/field;
                 let mut scalar = 0.0;
-                //let mut scalar = FORCE * rel_dist * a;
+                //let mut scalar = force * rel_dist * a;
                 let vector = (pos2 - position).normalize_or_zero();
-                if rel_dist >= 0.5 {
-                    //scalar = -((FORCE * a).abs());
-                    scalar = ((FORCE * a) * ((rel_dist) * 1.0));
+                if rel_dist >= 0.2 {
+                    //scalar = -((force * a).abs());
+                    //scalar = ((force * a) / (((1.0/rel_dist))).powi(2));
+                    scalar = (force * a) / (dist).powi(2);
                     //scalar = 0.0;
-                } else if rel_dist < 0.5 {
-                    scalar = -((FORCE * a.abs()) * 1.0); // ((0.5 - rel_dist) * 4.0));
+                } else if rel_dist < 0.2 && rel_dist != 0.0 {
+                    //scalar = -(force * a.abs() / (((1.0/rel_dist))).powi(2)); // ((0.5 - rel_dist) * 4.0));
+                    scalar = -(force * a.abs()) / (dist.powi(2));
                     //scalar = -(scalar*4.0);
                 }
                 impulse += vector * scalar;

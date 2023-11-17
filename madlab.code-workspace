@@ -9,7 +9,8 @@
 			"Deque",
 			"GRAV",
 			"conv",
-			"jetbrain"
+			"jetbrain",
+			"substeps"
 		]
 	}
 }

@@ -2,4 +2,6 @@ Cargo.lock
 madlab.exe
 madlab.wasm
 /target
-Cargo.lock
+_madlab.exe
+.gitignore
+.vs/*

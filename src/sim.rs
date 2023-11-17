@@ -157,6 +157,10 @@ impl Simulation {
 
     pub fn signals_check(&mut self) {
         let mut signals = get_signals();
+        if signals.shuffle_interactions {
+            signals.shuffle_interactions = false;
+            self.world.random_types();
+        }
         if signals.restart {
             self.reset_sim(None);
             signals.restart = false;

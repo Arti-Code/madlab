@@ -66,6 +66,7 @@ fn app_configuration() -> Conf {
         window_height: SCREEN_HEIGHT as i32,
         sample_count: 16,
         window_resizable: false,
+        fullscreen: true,
         ..Default::default()
     }
 }
