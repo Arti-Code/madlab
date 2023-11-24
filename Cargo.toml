@@ -1,6 +1,6 @@
 [package]
 name = "madlab"
-version = "0.4.0"
+version = "0.5.1"
 edition = "2021"
 authors = ["Artur Gwoździowski <gwozdyk@gmain.com>"]
 keywords = ["physics", "sandbox", "simulation"]
@@ -12,6 +12,7 @@ macroquad = "0.3.26"
 rapier2d = { version = "0.17.2", features = [ "simd-stable" ] }
 egui-macroquad = "0.15"
 crossbeam = "0.8.2"
+image = "0.24.7"
 
 [build-dependencies]
 embed-resource = "2.3.0"

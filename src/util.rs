@@ -45,13 +45,6 @@ pub fn random_color_num(mut num: u8) -> color::Color {
     return colors[c as usize];
 }
 
-pub fn generate_seed() -> u64 {
-    let t0 = UNIX_EPOCH.elapsed().unwrap().as_secs();
-    let tx = (t0%100).pow(2);
-    let t1 = (t0 as f32).sqrt() as u64;
-    return t1*tx;
-}
-
 pub fn random_color5() -> color::Color {
     let colors = [RED, BLUE, GREEN, YELLOW, WHITE];
     //let num = colors.len();
@@ -131,24 +124,9 @@ pub fn vec2_to_point2_collection(vec2_list: &Vec<Vec2>) -> Vec<Point2<f32>> {
     return points;
 }
 
-//?         [[[SIGNALS]]]
-/* pub struct Signals {
-    pub spawn_particles: bool,
-    pub creating_rect: bool,
-    pub spawn_rect:  bool,
-    pub new_sim: bool,
-    pub new_sim_name: String,
+pub fn generate_seed() -> u64 {
+    let t0 = UNIX_EPOCH.elapsed().unwrap().as_secs();
+    let tx = (t0%100).pow(2);
+    let t1 = (t0 as f32).sqrt() as u64;
+    return t1*tx;
 }
-
-impl Signals {
-    pub fn new() -> Self {
-        Self {
-            spawn_particles: false,
-            new_sim: false,
-            new_sim_name: String::new(),
-            creating_rect: false,
-            spawn_rect: false,
-        }
-    }
-}
- */

@@ -32,17 +32,6 @@ impl App {
         }
     }
 
-    fn seed_generator(&self) {
-        let seed = generate_seed();
-        println!("SEED: {}", seed);
-        rand::srand(seed);
-    }
-
-    pub fn start(&mut self) {
-        self.seed_generator();
-        self.sim.init();
-    }
-
     async fn run(&mut self) {
         loop {
             self.sim.input();
@@ -66,16 +55,21 @@ fn app_configuration() -> Conf {
         window_height: SCREEN_HEIGHT as i32,
         sample_count: 16,
         window_resizable: false,
-        fullscreen: true,
+        fullscreen: false,
+        high_dpi: true,
         ..Default::default()
     }
 }
 
 #[macroquad::main(app_configuration)]
 async fn main() {
+    let seed = generate_seed();
+    println!("SEED: {}", seed);
+    rand::srand(seed);  
+    let settings = Settings::default();
+    set_global_settings(settings);
     let font = load_ttf_font("jetbrain.ttf").await.expect("can't load font resource!");
     let mut app = App::new(font);
-    app.start();
     app.run().await;
 
 }

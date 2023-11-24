@@ -73,6 +73,9 @@ impl Simulation {
     }
 
     fn reset_sim(&mut self, sim_name: Option<&str>) {
+        let seed = generate_seed();
+        println!("SEED: {}", seed);
+        rand::srand(seed);
         self.simulation_name = match sim_name {
             Some(name) => name.to_string(),
             None => String::new(),
@@ -92,13 +95,19 @@ impl Simulation {
     }
 
     pub fn init(&mut self) {
-        self.elements.add_many_elements(ELEMENT_NUM as usize, &mut self.world);
-        //self.elements.add_motor(Vec2::new(500.0, 400.0), &mut self.world)
+        let settings = get_settings();
+        self.elements.add_many_elements(settings.particles_num, &mut self.world);
     }
 
     fn update_particles(&mut self) {
         for (id, elem) in self.elements.get_iter_mut() {
             elem.update(&mut self.world);
+        }
+    }
+
+    fn set_particles_damping(&mut self, damping: f32) {
+        for (_, mut particle) in self.elements.get_iter_mut() {
+            particle.set_damping(damping, &mut self.world);
         }
     }
 
@@ -109,13 +118,14 @@ impl Simulation {
         self.signals_check();
         self.process_ui();
         self.update_sim_state();
-        self.check_agents_num();
+        //self.check_agents_num();
         self.calc_selection_time();
         self.update_particles();
         self.world.step_physics();
     }
 
     pub fn draw(&mut self) {
+
         //set_default_camera();
         set_camera(&self.camera);
         clear_background(BLACK);
@@ -137,8 +147,9 @@ impl Simulation {
     }
 
     fn draw_particles(&self) {
+        let settings = get_settings();
         for (id, p) in self.elements.get_iter() {
-            p.draw(&self.world);
+            p.draw(settings.display, &self.world);
         }
     }
 
@@ -161,12 +172,21 @@ impl Simulation {
             signals.shuffle_interactions = false;
             self.world.random_types();
         }
+        if signals.start_new_sim {
+            signals.start_new_sim = false;
+            self.reset_sim(None);
+        }
         if signals.restart {
             self.reset_sim(None);
             signals.restart = false;
         }
         if self.signals.quit {
             std::process::exit(0);
+        }
+        if signals.particles_new_settings {
+            signals.particles_new_settings = false;
+            let settings = get_settings();
+            self.set_particles_damping(settings.damping);
         }
         set_global_signals(signals);
     }

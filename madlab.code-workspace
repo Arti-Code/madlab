@@ -8,9 +8,14 @@
 		"cSpell.ignoreWords": [
 			"Deque",
 			"GRAV",
+			"MOUSESTATE",
+			"colh",
 			"conv",
+			"gforce",
 			"jetbrain",
-			"substeps"
+			"srand",
+			"substeps",
+			"unmultiplied"
 		]
 	}
 }

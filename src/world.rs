@@ -42,7 +42,9 @@ impl World {
             max_ccd_substeps: 1,
             max_stabilization_iterations: 1,
             max_velocity_iterations: 1,
-            dt: 1./30.,
+            prediction_distance: 0.001,
+        
+            //dt: 1./30.,
             ..Default::default()
         };
 
@@ -80,7 +82,7 @@ impl World {
                 let pos1 = matrix_to_vec2(body1.position().translation);
                 let coll1 = self.colliders.get(*body1.colliders().first().unwrap()).unwrap();
                 let size1 = coll1.shape().as_ball().unwrap().radius;
-                for (id2, body2) in self.rigid_bodies.iter() { 
+                for (_, body2) in self.rigid_bodies.iter() { 
                     let pos2 = matrix_to_vec2(body2.position().translation);
                     let coll2 = self.colliders.get(*body2.colliders().first().unwrap()).unwrap();
                     let size2 = coll2.shape().as_ball().unwrap().radius;
@@ -185,12 +187,13 @@ impl World {
         return body_num;
     }
 
-    pub fn field_react(&mut self, position: Vec2, _radius: f32, p_type: u128, handle: RigidBodyHandle) {
+    pub fn field_react(&mut self, position: Vec2, size: f32, p_type: u128, handle: RigidBodyHandle) {
         let settings = get_settings();
-        let field = settings.field;
+        let radius = settings.field * size;
         let force = settings.force;
+        let repel = settings.repel;
         let iso0 = make_isometry(position.x, position.y, 0.0);
-        let field = Ball::new(field);
+        let field = Ball::new(radius);
         let filter = QueryFilter {
             flags: QueryFilterFlags::ONLY_DYNAMIC | QueryFilterFlags::EXCLUDE_SENSORS,
             groups: None,
@@ -205,38 +208,28 @@ impl World {
                 let particle1_collider = self.colliders.get(collided).unwrap();
                 let particle1_handle = particle1_collider.parent().unwrap();
                 let particle1 = self.rigid_bodies.get(particle1_handle).unwrap();
-                
+                //let size1 = particle1_collider.shape().as_ball().unwrap().radius;
+                //let f = force * (size + size1)/2.0;
+                let f = force;
                 let t1 = particle1.user_data;
                 let a = particle_type.actions[t1 as usize];
                 let pos2 = matrix_to_vec2(particle1.position().translation);
                 let dist = position.distance(pos2);
-                //let rel_dist = 1.0 - dist/field;
-                let rel_dist = dist/field;
+                let rel_dist = dist/radius;
                 let mut scalar = 0.0;
-                //let mut scalar = force * rel_dist * a;
                 let vector = (pos2 - position).normalize_or_zero();
-                if rel_dist >= 0.2 {
-                    //scalar = -((force * a).abs());
-                    //scalar = ((force * a) / (((1.0/rel_dist))).powi(2));
-                    scalar = (force * a) / (dist).powi(2);
-                    //scalar = 0.0;
-                } else if rel_dist < 0.2 && rel_dist != 0.0 {
-                    //scalar = -(force * a.abs() / (((1.0/rel_dist))).powi(2)); // ((0.5 - rel_dist) * 4.0));
-                    scalar = -(force * a.abs()) / (dist.powi(2));
-                    //scalar = -(scalar*4.0);
+                if rel_dist >= repel {
+                    scalar = (f * a) / (dist).powi(2);
+                } else if rel_dist < repel && rel_dist != 0.0 {
+                    scalar = -(f * a.abs()) / (dist.powi(2));
                 }
                 impulse += vector * scalar;
                 return true;
             },
         );
         let particle0 = self.rigid_bodies.get_mut(handle).unwrap();
-        //let p_type = particle0.user_data;
-        //let info = self.types.types.get(&p_type).unwrap();
-        //let action = info.action;
-        //impulse *= action;
         particle0.reset_forces(true);
         particle0.add_force(Vector2::new(impulse.x, impulse.y), true);
-        //particle0.apply_impulse(Vector2::new(impulse.x, impulse.y), true);
     }
 
     pub fn step_physics(&mut self) {
@@ -244,6 +237,7 @@ impl World {
         //let (contact_force_send, contact_force_recv) = crossbeam::channel::unbounded();
         //let event_handler = ChannelEventCollector::new(collision_send, contact_force_send);
         //self.update_grav();
+        
         self.physics_pipeline.step(
             &self.gravity,
             &self.integration_parameters,
@@ -274,7 +268,6 @@ impl World {
 
     pub fn get_physics_data(&self, handle: RigidBodyHandle) -> PhysicsData {
         return if let Some(rb) = self.rigid_bodies.get(handle) {
-            //.expect("handle to non-existent rigid body");
             let iso = rb.position();
             let (pos, rot) = self.iso_to_vec2_rot(iso);
             let data = PhysicsData {
