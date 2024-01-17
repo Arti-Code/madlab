@@ -85,7 +85,6 @@ pub fn matrix_to_vec2(translation: Translation<f32, 2>) -> Vec2 {
 
 pub fn map_polygon(n: usize, r: f32, dev: f32) -> Vec<Vec2> {
     let mut points: Vec<Vec2> = vec![];
-    //let mut opoints: Vec<Point2<f32>> = vec![];
     let s = 2.0 * PI / (n as f32);
     let mut a = 2.0 * PI;
     for i in 0..n {
@@ -104,9 +103,7 @@ pub fn map_polygon(n: usize, r: f32, dev: f32) -> Vec<Vec2> {
         let mut v = Vec2::new(x, y);
         v = v.normalize();
         v = v * r;
-        //let p = Point2::new(v.x, v.y);
         points.push(v);
-        //opoints.push(p);
     }
     return points;
 }

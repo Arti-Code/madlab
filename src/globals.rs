@@ -2,23 +2,23 @@
 use macroquad::experimental::collections::storage;
 
 
-pub const SCREEN_WIDTH: f32 = 1800.0;
-pub const SCREEN_HEIGHT: f32 = 900.0;
-pub const WORLD_W: f32 = 3600.0;
-pub const WORLD_H: f32 = 1800.0;
+pub const SCREEN_WIDTH: f32 = 1200.0;
+pub const SCREEN_HEIGHT: f32 = 800.0;
+pub const WORLD_W: f32 = 3000.0;
+pub const WORLD_H: f32 = 2000.0;
 
-pub const ELEMENT_SIZE: f32 = 1.5;
-pub const ELEMENT_NUM: i32 = 2500;
+pub const ELEMENT_SIZE: f32 = 1.0;
+pub const ELEMENT_NUM: i32 = 2000;
 pub const ELEMENT_SPEED: f32 = 50.0;
 
 pub const ZOOM_RATE: f32 = 1.0 / 800.0;
 pub const SCREEN_RATIO: f32 = SCREEN_WIDTH / SCREEN_HEIGHT;
 
 pub const GRAV: f32 = 0.0;
-pub const FIELD: f32 = 80.0;
+pub const FIELD: f32 = 50.0;
 
 pub const PRECISION: f32 = 0.05;
-pub const FORCE: f32 = 100000.0;
+pub const FORCE: f32 = 10.0;
 pub const TYPES_NUM: u64 = 19;
 
 #[derive(Clone, Copy)]
@@ -54,25 +54,39 @@ pub fn get_mut_signals() -> Signals {
 
 #[derive(Clone, Copy)]
 pub struct Settings {
+    pub width: f32,
+    pub height: f32,
     pub field: f32,
     pub force: f32,
+    pub strong_force: f32,
+    pub strong_field: f32,
     pub repel: f32,
     pub particles_num: usize,
     pub particle_types: usize,
+    pub particle_size: f32,
+    pub particle_dense: f32,
     pub damping: f32,
     pub display: DisplayMode,
+    pub field_range: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            width: WORLD_W,
+            height: WORLD_H,
             field: 70.0,
-            force: 200000.0,
-            repel: 0.1,
+            force: 5.0,
+            repel: 0.35,
             particles_num: 2000,
             particle_types: 19,
-            damping: 2.0,
+            particle_size: 1.0,
+            particle_dense: 1.0,
+            damping: 1.0,
             display: DisplayMode::ELEMENTS,
+            strong_force: 500.0,
+            strong_field: 0.1,
+            field_range: false,
        }
     }
 }

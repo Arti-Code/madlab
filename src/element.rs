@@ -113,6 +113,7 @@ impl Physical for Element {
     }
 
     fn draw(&self, display_mode: DisplayMode, physics: &World) {
+        let settings = get_settings();
         match display_mode {
             DisplayMode::ELEMENTS => {
                 self.draw_circle_object();
@@ -123,6 +124,10 @@ impl Physical for Element {
             DisplayMode::ENERGY => {
                 self.draw_circle_energy();
             },
+        }
+        if settings.field_range {
+            let r = settings.field;
+            draw_circle_lines(self.pos.x, self.pos.y, r, 0.25, LIGHTGRAY);
         }
         
     }
@@ -191,19 +196,22 @@ impl Element {
     }
 
     fn edges_check(&mut self, body: &mut RigidBody) {
+        let settings = get_settings();
+        let world_w = settings.width;
+        let world_h = settings.height;
         let mut raw_pos = matrix_to_vec2(body.position().translation);
         let mut out_of_edge = false;
         if raw_pos.x < 0.0 {
-            raw_pos.x = WORLD_W - 5.0;
+            raw_pos.x = world_w - 5.0;
             out_of_edge = true;
-        } else if raw_pos.x > WORLD_W {
+        } else if raw_pos.x > world_w {
             raw_pos.x = 5.0;
             out_of_edge = true;
         }
         if raw_pos.y < 0.0 {
-            raw_pos.y = WORLD_H - 5.0;
+            raw_pos.y = world_h - 5.0;
             out_of_edge = true;
-        } else if raw_pos.y > WORLD_H {
+        } else if raw_pos.y > world_h {
             raw_pos.y = 5.0;
             out_of_edge = true;
         }
@@ -215,6 +223,19 @@ impl Element {
     pub fn set_damping(&mut self, damping: f32, physics: &mut World) {
         let rb = physics.rigid_bodies.get_mut(self.rigid_handle).unwrap();
         rb.set_linear_damping(damping);
+    }
+
+    pub fn set_size(&mut self, size: f32, density: f32, physics: &mut World) {
+        let rb = physics.rigid_bodies.get_mut(self.rigid_handle).unwrap();
+        if let Some(collider_handle) = rb.colliders().first() {
+            let ch = *collider_handle;
+            let mut collider = physics.colliders.get_mut(ch).unwrap();
+            let shape = SharedShape::ball(size);
+            collider.set_shape(shape.clone());
+            collider.set_density(density);
+            self.shape = shape.clone();
+            self.size = size;
+        }
     }
 
 }
@@ -244,14 +265,14 @@ impl ElementCollector {
         let size = match no_random_size {
             None => {
                 //gen_range(4.0, 12.0) as f32
-                ELEMENT_SIZE
+                settings.particle_size
             },
             Some(s) => {
                 s
             },
         };
         //let r = rand::gen_range(1, 3) + rand::gen_range(1, 2) + rand::gen_range(0, 2);
-        let r = 2;
+        let r = settings.particle_size;
         let circle = SharedShape::ball(r as f32);
         let element = match position {
             Some(pos) => {

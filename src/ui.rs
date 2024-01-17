@@ -116,6 +116,11 @@ impl UI {
                         settings.display = DisplayMode::STROKE;
                         set_global_settings(settings);
                     }
+                    if ui.button(RichText::new("Show Field Range").strong().color(Color32::BLUE)).clicked() {
+                        let mut settings = get_settings();
+                        settings.field_range = !settings.field_range;
+                        set_global_settings(settings);
+                    }
                 });
 
                 ui.separator();
@@ -147,16 +152,62 @@ impl UI {
             return;
         }
         let mut settings = get_settings();
-        egui::Window::new("SETTINGS").id("settings_win".into()).default_pos((SCREEN_WIDTH/2., 0.0)).fixed_size([380., 400.])
+        egui::Window::new("SETTINGS").id("settings_win".into()).default_pos((SCREEN_WIDTH/2., 0.0)).fixed_size([400., 400.])
         .title_bar(true).show(egui_ctx, |ui| {
+            ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut width = settings.width;
+                column[0].label(RichText::new("WORLD X").color(Color32::YELLOW).strong());
+                if column[1].add(Slider::new(&mut width, 400.0..=4000.0).step_by(100.0)).changed() {
+                    settings.width = width;
+                    set_global_settings(settings);
+                }
+            });
+            ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut height = settings.height;
+                column[0].label(RichText::new("WORLD Y").color(Color32::YELLOW).strong());
+                if column[1].add(Slider::new(&mut height, 300.0..=3000.0).step_by(100.0)).changed() {
+                    settings.height = height;
+                    set_global_settings(settings);
+                }
+            });
             ui.columns(2, |column| {
                 column[0].set_max_size(UIVec2::new(80., 75.));
                 column[1].set_max_size(UIVec2::new(280., 75.));
                 let mut particles_num = settings.particles_num;
                 column[0].label(RichText::new("PARTICLES NUMBER").color(Color32::YELLOW).strong());
-                if column[1].add(Slider::new(&mut particles_num, 0..=20000).step_by(100.0)).changed() {
+                if column[1].add(Slider::new(&mut particles_num, 0..=10000).step_by(100.0)).changed() {
                     settings.particles_num = particles_num;
                     set_global_settings(settings);
+                }
+            });
+            ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut particle_size = settings.particle_size;
+                column[0].label(RichText::new("PARTICLES SIZE").color(Color32::RED).strong());
+                if column[1].add(Slider::new(&mut particle_size, 0.1..=5.0).step_by(0.1)).changed() {
+                    settings.particle_size = particle_size;
+                    let mut signals = get_signals();
+                    signals.particles_new_settings = true;
+                    set_global_settings(settings);
+                    set_global_signals(signals);
+                }
+            });
+            ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut particle_dense = settings.particle_dense;
+                column[0].label(RichText::new("PARTICLES DENSE").color(Color32::BLUE).strong());
+                if column[1].add(Slider::new(&mut particle_dense, 0.1..=5.0).step_by(0.1)).changed() {
+                    settings.particle_dense = particle_dense;
+                    let mut signals = get_signals();
+                    signals.particles_new_settings = true;
+                    set_global_settings(settings);
+                    set_global_signals(signals);
                 }
             });
             ui.columns(2, |column| {
@@ -184,17 +235,37 @@ impl UI {
                 column[1].set_max_size(UIVec2::new(280., 75.));
                 let mut force = settings.force;
                 column[0].label(RichText::new("FORCE").color(Color32::GREEN).strong());
-                if column[1].add(Slider::new(&mut force, 0.0..=500000.0).step_by(5000.0)).changed() {
+                if column[1].add(Slider::new(&mut force, 0.0..=50.0).step_by(1.0)).changed() {
                     settings.force = force;
                     set_global_settings(settings);
                 }
             });
+            /* ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut strong_field = settings.strong_field;
+                column[0].label(RichText::new("STRONG FIELD").color(Color32::BLUE).strong());
+                if column[1].add(Slider::new(&mut strong_field, 0.0..=1.0).step_by(0.02)).changed() {
+                    settings.strong_field = strong_field;
+                    set_global_settings(settings);
+                }
+            }); */
+            /* ui.columns(2, |column| {
+                column[0].set_max_size(UIVec2::new(80., 75.));
+                column[1].set_max_size(UIVec2::new(280., 75.));
+                let mut strong_force = settings.strong_force;
+                column[0].label(RichText::new("STRONG FORCE").color(Color32::GREEN).strong());
+                if column[1].add(Slider::new(&mut strong_force, 0.0..=2000.0).step_by(100.0)).changed() {
+                    settings.strong_force = strong_force;
+                    set_global_settings(settings);
+                }
+            }); */
             ui.columns(2, |column| {
                 column[0].set_max_size(UIVec2::new(80., 75.));
                 column[1].set_max_size(UIVec2::new(280., 75.));
                 let mut repel = settings.repel;
                 column[0].label(RichText::new("REPEL RELATIVE DISTANCE").color(Color32::RED).strong());
-                if column[1].add(Slider::new(&mut repel, 0.0..=1.0).step_by(0.05)).changed() {
+                if column[1].add(Slider::new(&mut repel, 0.0..=1.0).step_by(0.01)).changed() {
                     settings.repel = repel;
                     set_global_settings(settings);
                 }
@@ -204,7 +275,7 @@ impl UI {
                 column[1].set_max_size(UIVec2::new(280., 75.));
                 let mut damping = settings.damping;
                 column[0].label(RichText::new("DAMPING").color(Color32::DARK_BLUE).strong());
-                if column[1].add(Slider::new(&mut damping, 0.0..=2.0).step_by(0.05)).changed() {
+                if column[1].add(Slider::new(&mut damping, 0.0..=4.0).step_by(0.1)).changed() {
                     settings.damping = damping;
                     set_global_settings(settings);
                     let mut signals = get_signals();

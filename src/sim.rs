@@ -111,6 +111,12 @@ impl Simulation {
         }
     }
 
+    fn set_particles_size(&mut self, size: f32, density: f32) {
+        for (_, mut particle) in self.elements.get_iter_mut() {
+            particle.set_size(size, density, &mut self.world);
+        }
+    }
+
     pub fn update(&mut self) {
         //if self.info_time.update(get_frame_time()) {
         //    self.total_eng = self.world.get_total_kinetic_eng();
@@ -187,6 +193,7 @@ impl Simulation {
             signals.particles_new_settings = false;
             let settings = get_settings();
             self.set_particles_damping(settings.damping);
+            self.set_particles_size(settings.particle_size, settings.particle_dense);
         }
         set_global_signals(signals);
     }

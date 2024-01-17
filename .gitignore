@@ -23,3 +23,4 @@ particles/assets/img/life2_logo.png
 particles/assets/img/physix.png
 .gitignore
 madlab2.exe
+Cargo.lock

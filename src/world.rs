@@ -34,17 +34,12 @@ pub struct World {
 impl World {
 
     pub fn new() -> Self {
-        //let (collision_send, collision_recv) = crossbeam::channel::unbounded();
-        //let (contact_force_send, contact_force_recv) = crossbeam::channel::unbounded();
-        //let event_handler = ChannelEventCollector::new(collision_send, contact_force_send);
         let solver_params = IntegrationParameters {
             interleave_restitution_and_friction_resolution: false,
             max_ccd_substeps: 1,
             max_stabilization_iterations: 1,
             max_velocity_iterations: 1,
             prediction_distance: 0.001,
-        
-            //dt: 1./30.,
             ..Default::default()
         };
 
@@ -135,7 +130,7 @@ impl World {
                 //let radius = shape.0.as_ball().unwrap().radius;
                 ColliderBuilder::new(shape).position(iso).density(physics_props.density).friction(physics_props.friction).restitution(physics_props.restitution)
                     .active_collision_types(ActiveCollisionTypes::empty()).active_events(ActiveEvents::empty())
-                    //.active_collision_types(ActiveCollisionTypes::DYNAMIC_DYNAMIC).active_events(ActiveEvents::empty())
+                    .active_collision_types(ActiveCollisionTypes::DYNAMIC_DYNAMIC).active_events(ActiveEvents::empty())
                     .build()
             },
             ShapeType::ConvexPolygon => {
@@ -211,6 +206,7 @@ impl World {
                 //let size1 = particle1_collider.shape().as_ball().unwrap().radius;
                 //let f = force * (size + size1)/2.0;
                 let f = force;
+                //let sf = settings.strong_force;
                 let t1 = particle1.user_data;
                 let a = particle_type.actions[t1 as usize];
                 let pos2 = matrix_to_vec2(particle1.position().translation);
@@ -218,11 +214,16 @@ impl World {
                 let rel_dist = dist/radius;
                 let mut scalar = 0.0;
                 let vector = (pos2 - position).normalize_or_zero();
-                if rel_dist >= repel {
-                    scalar = (f * a) / (dist).powi(2);
+                if rel_dist >= repel && rel_dist != 0.0 {
+                    scalar = (f * a) / (repel/rel_dist).powi(2);
                 } else if rel_dist < repel && rel_dist != 0.0 {
-                    scalar = -(f * a.abs()) / (dist.powi(2));
+                    scalar = -(f * a.abs()) / ((rel_dist/repel).powi(2));
+                    //scalar = 0.0;
                 }
+                //if rel_dist <= settings.strong_field {
+                    //scalar = -sf;
+                    //impulse -= vector * settings.strong_force;
+                //}
                 impulse += vector * scalar;
                 return true;
             },
