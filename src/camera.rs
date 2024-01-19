@@ -3,14 +3,17 @@ use macroquad::prelude::*;
 
 pub fn create_camera() -> Camera2D {
     //let mut camera2d = Camera2D::from_display_rect(Rect::new(0.0, 0.0, SCREEN_WIDTH, SCREEN_HEIGHT));
+    //let settings = get_settings();
+    //let x = settings.width;
+    //let y = settings.height;
     let mut camera2d = Camera2D {
         zoom: Vec2 {
             x: ZOOM_RATE,
             y: SCREEN_RATIO * ZOOM_RATE,
         },
         target: Vec2 {
-            x: WORLD_W / 2.0,
-            y: WORLD_H / 2.0,
+            x: 0.0,
+            y: 0.0,
         },
         ..Default::default()
     };
@@ -28,8 +31,11 @@ pub fn control_camera(camera: &mut Camera2D /* , screen_ratio: f32 */) {
         }
     }
     if is_key_pressed(KeyCode::KpMultiply) {
+        let settings = get_settings();
+        let r = settings.world_radius;
+        //let y = settings.height;
         camera.zoom = Vec2::new(ZOOM_RATE, SCREEN_RATIO * ZOOM_RATE);
-        camera.target = Vec2::new(WORLD_W / 2.0, WORLD_H / 2.0);
+        camera.target = Vec2::new(r / 2.0, r / 2.0);
     }
     //let modul = ZOOM_RATE/camera.target.x;
     if is_key_pressed(KeyCode::Left) {

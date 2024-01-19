@@ -87,12 +87,12 @@ impl UI {
 
                 ui.separator();
                 menu::menu_button(ui, RichText::new("SETTINGS").strong(), |ui| {
+                    if ui.button(RichText::new("Rules").strong().color(Color32::GREEN)).clicked() {
+                        self.settings_win = !self.settings_win;
+                    }
                     if ui.button(RichText::new("Shuffle interactions").strong().color(Color32::GREEN)).clicked() {
                         signals.shuffle_interactions = true;
                         set_global_signals(signals);
-                    }
-                    if ui.button(RichText::new("Rules").strong().color(Color32::GREEN)).clicked() {
-                        self.settings_win = !self.settings_win;
                     }
                 });
                 
@@ -157,20 +157,10 @@ impl UI {
             ui.columns(2, |column| {
                 column[0].set_max_size(UIVec2::new(80., 75.));
                 column[1].set_max_size(UIVec2::new(280., 75.));
-                let mut width = settings.width;
-                column[0].label(RichText::new("WORLD X").color(Color32::YELLOW).strong());
-                if column[1].add(Slider::new(&mut width, 400.0..=4000.0).step_by(100.0)).changed() {
-                    settings.width = width;
-                    set_global_settings(settings);
-                }
-            });
-            ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
-                let mut height = settings.height;
-                column[0].label(RichText::new("WORLD Y").color(Color32::YELLOW).strong());
-                if column[1].add(Slider::new(&mut height, 300.0..=3000.0).step_by(100.0)).changed() {
-                    settings.height = height;
+                let mut world_radius = settings.world_radius;
+                column[0].label(RichText::new("WORLD RANGE").color(Color32::YELLOW).strong());
+                if column[1].add(Slider::new(&mut world_radius, 100.0..=4000.0).step_by(100.0)).changed() {
+                    settings.world_radius = world_radius;
                     set_global_settings(settings);
                 }
             });
@@ -240,26 +230,6 @@ impl UI {
                     set_global_settings(settings);
                 }
             });
-            /* ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
-                let mut strong_field = settings.strong_field;
-                column[0].label(RichText::new("STRONG FIELD").color(Color32::BLUE).strong());
-                if column[1].add(Slider::new(&mut strong_field, 0.0..=1.0).step_by(0.02)).changed() {
-                    settings.strong_field = strong_field;
-                    set_global_settings(settings);
-                }
-            }); */
-            /* ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
-                let mut strong_force = settings.strong_force;
-                column[0].label(RichText::new("STRONG FORCE").color(Color32::GREEN).strong());
-                if column[1].add(Slider::new(&mut strong_force, 0.0..=2000.0).step_by(100.0)).changed() {
-                    settings.strong_force = strong_force;
-                    set_global_settings(settings);
-                }
-            }); */
             ui.columns(2, |column| {
                 column[0].set_max_size(UIVec2::new(80., 75.));
                 column[1].set_max_size(UIVec2::new(280., 75.));
@@ -296,14 +266,14 @@ impl UI {
                 });
                 ui.add_space(2.0);
                 ui.vertical_centered(|title| {
-                    title.heading(RichText::new("MAD LAB").color(Color32::RED).strong());
+                    title.heading(RichText::new("MAD LAB").color(Color32::LIGHT_GREEN).strong());
                 });
                 ui.vertical_centered(|author| {
-                    author.label(RichText::new("Artur Gwoździowski 2019-2023").color(Color32::BLUE).strong());
+                    author.label(RichText::new("Artur Gwoździowski 2019-2024").color(Color32::LIGHT_BLUE).strong());
                 });
                 ui.add_space(2.0);
                 ui.vertical_centered(|author| {
-                    author.label(RichText::new(format!("version {}", env!("CARGO_PKG_VERSION"))).color(Color32::YELLOW).italics());
+                    author.label(RichText::new(format!("version {}", env!("CARGO_PKG_VERSION"))).color(Color32::GOLD).italics());
                 });
                 ui.add_space(2.0);
                 ui.vertical_centered(|closer| {
@@ -324,7 +294,7 @@ struct LogoImage {
 impl LogoImage {
     fn ui(&mut self, ui: &mut Ui) {
         let texture: &TextureHandle = self.texture.get_or_insert_with(|| {
-            ui.ctx().load_texture("atom", ColorImage::example(), Default::default())
+            ui.ctx().load_texture("science", ColorImage::example(), Default::default())
         });
         ui.add(egui_macroquad::egui::Image::new(texture, texture.size_vec2()));
         ui.image(texture, texture.size_vec2());

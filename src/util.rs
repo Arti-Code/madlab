@@ -4,7 +4,8 @@ use std::time::{UNIX_EPOCH, Duration};
 use std::f32::consts::PI;
 use crate::globals::*;
 use macroquad::{color, prelude::*};
-use rapier2d::na::*;
+use rapier2d::na::{*, clamp};
+
 
 
 pub fn random_unit() -> f32 {
@@ -15,6 +16,13 @@ pub fn random_position(x_max: f32, y_max: f32) -> Vec2 {
     let x = rand::gen_range(0.0, x_max);
     let y = rand::gen_range(0.0, y_max);
     return Vec2::new(x, y);
+}
+
+pub fn random_circle_position(r: f32) -> Vec2 {
+    let a = rand::gen_range(0.0, 2.0 * PI);
+    let d = (rand::gen_range(0.0, r)+rand::gen_range(0.0, r))/2.0;
+    let v = Vec2::from_angle(a) * d;
+    return v;
 }
 
 pub fn random_rotation() -> f32 {
@@ -32,6 +40,13 @@ pub fn random_color() -> color::Color {
     let colors = vec![RED, GREEN, BLUE, YELLOW, GRAY/* , ORANGE, GRAY, SKYBLUE, LIME */];
     let num = colors.len();
     let c = rand::gen_range(0, num);
+    return colors[c];
+}
+
+pub fn random_all_colors(n: usize) -> Color {
+    let colors = vec![LIGHTGRAY, GRAY, DARKGRAY, YELLOW, GOLD, ORANGE, PINK, RED, MAROON, GREEN, LIME, DARKGREEN, SKYBLUE, BLUE, DARKBLUE, PURPLE, VIOLET, DARKPURPLE, BEIGE, BROWN, DARKBROWN, WHITE, MAGENTA];
+    let cn = clamp(n-1, 0, colors.len()-1);
+    let c = rand::gen_range(0, cn);
     return colors[c];
 }
 
@@ -126,4 +141,20 @@ pub fn generate_seed() -> u64 {
     let tx = (t0%100).pow(2);
     let t1 = (t0 as f32).sqrt() as u64;
     return t1*tx;
+}
+
+pub fn draw_smooth_circle(r: f32, center: Vec2, detail: f32, width: f32, color: Color) {
+    let o = PI * r * 2.0;
+    let s = o / detail;
+    let a = 2.0 * PI / s;
+    let mut angle = 0.0;
+    while angle <= 2.0*PI {
+        let p0 = center + Vec2::from_angle(angle) * r;
+        angle += a;
+        let p1 = center + Vec2::from_angle(angle) * r;
+        draw_line(p0.x, p0.y, p1.x, p1.y, width, color);
+    }
+    let p0 = center + Vec2::from_angle(angle) * r;
+    let p1 = center + Vec2::from_angle(0.0) * r;
+    draw_line(p0.x, p0.y, p1.x, p1.y, width, color);
 }

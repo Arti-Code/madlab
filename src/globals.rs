@@ -54,8 +54,7 @@ pub fn get_mut_signals() -> Signals {
 
 #[derive(Clone, Copy)]
 pub struct Settings {
-    pub width: f32,
-    pub height: f32,
+    pub world_radius: f32,
     pub field: f32,
     pub force: f32,
     pub strong_force: f32,
@@ -73,12 +72,11 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            width: WORLD_W,
-            height: WORLD_H,
+            world_radius: 1600.0,
             field: 70.0,
             force: 5.0,
             repel: 0.35,
-            particles_num: 2000,
+            particles_num: 1000,
             particle_types: 19,
             particle_size: 1.0,
             particle_dense: 1.0,

@@ -58,7 +58,7 @@ impl Physical for Element {
         let colors = vec![
             RED, GREEN, BLUE, YELLOW, ORANGE, MAGENTA, DARKGREEN, PURPLE, 
             PINK, VIOLET, DARKBLUE, WHITE, SKYBLUE, LIME, DARKPURPLE, 
-            BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY 
+            BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY, 
         ];
         let key = gen_range(u64::MIN, u64::MAX);
         let t: usize = rand::gen_range(0, types_num);
@@ -98,7 +98,8 @@ impl Physical for Element {
         } 
         match physics.rigid_bodies.get_mut(self.rigid_handle) {
             Some(body) => {
-                self.edges_check(body);
+                //self.edges_check(body);
+                self.out_of_edges(body);
             }
             None => {
                 warn!("can't find rigid body!");
@@ -195,29 +196,47 @@ impl Element {
         }
     }
 
-    fn edges_check(&mut self, body: &mut RigidBody) {
+/*     fn edges_check(&mut self, body: &mut RigidBody) {
         let settings = get_settings();
         let world_w = settings.width;
         let world_h = settings.height;
         let mut raw_pos = matrix_to_vec2(body.position().translation);
         let mut out_of_edge = false;
         if raw_pos.x < 0.0 {
-            raw_pos.x = world_w - 5.0;
+            raw_pos.x = 0.0;
             out_of_edge = true;
         } else if raw_pos.x > world_w {
-            raw_pos.x = 5.0;
+            raw_pos.x = world_w;
             out_of_edge = true;
         }
         if raw_pos.y < 0.0 {
-            raw_pos.y = world_h - 5.0;
+            raw_pos.y = 0.0;
             out_of_edge = true;
         } else if raw_pos.y > world_h {
-            raw_pos.y = 5.0;
+            raw_pos.y = world_h;
             out_of_edge = true;
         }
         if out_of_edge {
+            let vel = body.linvel();
+            let x = -vel.x;
+            let y = -vel.y;
+            let v = Vector2::new(x, y);
+            body.set_linvel(v, true);
             body.set_position(make_isometry(raw_pos.x, raw_pos.y, self.rot), true);
         }
+    } */
+
+    fn out_of_edges(&mut self, body: &mut RigidBody) {
+        let settings = get_settings();
+        let r = settings.world_radius;
+        let mut raw_pos = matrix_to_vec2(body.position().translation);
+        let dist_from_center = Vec2::ZERO.distance(raw_pos).abs();
+        let dir = (raw_pos).normalize_or_zero();
+        if dist_from_center >= r/2. {
+            let hold_force = -dir * (r/2.0 - dist_from_center);
+            let hf = vector![hold_force.x, hold_force.y];
+            body.apply_impulse(hf, true) 
+        };
     }
 
     pub fn set_damping(&mut self, damping: f32, physics: &mut World) {
@@ -261,6 +280,8 @@ impl ElementCollector {
 
     pub fn add_element(&mut self, position: Option<Vec2>, color: Color, no_random_size: Option<f32>, random_vel: bool, physics: &mut World) -> (u64, RigidBodyHandle) {
         let settings = get_settings();
+        //let w = settings.width;
+        //let h = settings.height;
         let damping = settings.damping;
         let size = match no_random_size {
             None => {
@@ -279,7 +300,8 @@ impl ElementCollector {
                 Element::new(pos, circle, damping, Some(BLUE), Some(color), random_vel, physics)
             },
             None => {
-                let coord = random_position(WORLD_W-10.0, WORLD_H-10.0) + Vec2::new(5.0, 5.0);
+                //let coord = random_position(w-10.0, h-10.0) + Vec2::new(5.0, 5.0);
+                let coord = random_circle_position(settings.world_radius/2.);
                 Element::new(coord, circle, damping, Some(BLUE), Some(color), random_vel, physics)
             },    
         };

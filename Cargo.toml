@@ -1,6 +1,6 @@
 [package]
 name = "madlab"
-version = "0.5.3"
+version = "0.5.5"
 edition = "2021"
 authors = ["Artur Gwoździowski <gwozdyk@gmain.com>"]
 keywords = ["physics", "sandbox", "simulation"]

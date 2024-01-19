@@ -131,11 +131,16 @@ impl Simulation {
     }
 
     pub fn draw(&mut self) {
-
+        let settings = get_settings();
+        //let w = settings.width;
+        //let h = settings.height;
+        let r = settings.world_radius/2.0;
         //set_default_camera();
         set_camera(&self.camera);
         clear_background(BLACK);
-        draw_rectangle_lines(0.0, 0.0, self.world_size.x, self.world_size.y, 3.0, WHITE);
+        //draw_rectangle_lines(0.0, 0.0, w, h, 3.0, WHITE);
+        //draw_circle_lines(0.0, 0.0, r, 2.0, MAGENTA);
+        draw_smooth_circle(r, Vec2::ZERO, 32., 1.0, LIGHTGRAY);
         //self.draw_grid(50);
         self.draw_particles();
         self.draw_info();
