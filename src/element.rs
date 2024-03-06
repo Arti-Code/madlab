@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use crate::globals::*;
 use crate::timer::Timer;
 use crate::util::*;
-use crate::world::*;
+use crate::physics::*;
+use crate::physics_types::*;
 use macroquad::{color, prelude::*};
 use macroquad::rand::*;
 use rapier2d::geometry::*;
@@ -16,20 +17,20 @@ use rapier2d::prelude::*;
 
 
 pub trait Physical {
-    fn new(position: Vec2, shape: SharedShape, damping: f32, stroke: Option<Color>, fill: Option<Color>, random_vel: bool, physics: &mut World) -> Self;
-    fn update(&mut self, physics: &mut World);
-    fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, random_vel: bool, damping: f32, physics: &mut World, p_type: u128) -> RigidBodyHandle;
-    fn draw(&self, display_mode: DisplayMode, physics: &World);
-    fn draw_joint(&self, physics: &World);
+    fn new(position: Vec2, shape: SharedShape, damping: f32, stroke: Option<Color>, fill: Option<Color>, random_vel: bool, physics: &mut Physics) -> Self;
+    fn update(&mut self, physics: &mut Physics);
+    fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, random_vel: bool, damping: f32, physics: &mut Physics, p_type: u128) -> RigidBodyHandle;
+    fn draw(&self, display_mode: DisplayMode, physics: &Physics);
+    fn draw_joint(&self, physics: &Physics);
 }
 
 pub trait Reactive {
-    fn react(&mut self, physics: &mut World);
+    fn react(&mut self, physics: &mut Physics);
 }
 
 impl Reactive for Element {
 
-    fn react(&mut self, physics: &mut World) {
+    fn react(&mut self, physics: &mut Physics) {
         let settings = get_settings();
         physics.field_react(self.pos, self.size,  self.physics_type, self.rigid_handle);
     }
@@ -52,7 +53,7 @@ pub struct Element {
 }
 
 impl Physical for Element {
-    fn new(position: Vec2, shape: SharedShape, damping: f32, stroke: Option<Color>, fill: Option<Color>, random_vel: bool, physics: &mut World) -> Self {
+    fn new(position: Vec2, shape: SharedShape, damping: f32, stroke: Option<Color>, fill: Option<Color>, random_vel: bool, physics: &mut Physics) -> Self {
         let settings = get_settings();
         let types_num = settings.particle_types;
         let colors = vec![
@@ -61,11 +62,16 @@ impl Physical for Element {
             BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY, 
         ];
         let key = gen_range(u64::MIN, u64::MAX);
-        let t: usize = rand::gen_range(0, types_num);
+        let t = rand::gen_range(0, types_num);
+        /* let t: usize = match fix_type {
+            None => rand::gen_range(0, types_num),
+            Some(t) => t as usize,
+        }; */
+        
         //let p_type = physics.types.types.get(&(t as u128)).unwrap();
         let c =  colors.get(t as usize).unwrap();
         let rbh = Self::add_to_physic_space(&position, 0.0, shape.clone(), random_vel, damping, physics, t as u128);
-        let timer = PRECISION * rand::gen_range(0.0, 1.0);
+        let timer = 0.1 * rand::gen_range(0.0, 1.0);
         Self {
             key,
             pos: position,
@@ -82,13 +88,13 @@ impl Physical for Element {
         }
     }
 
-    fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, random_vel: bool, damping: f32, physics: &mut World, p_type: u128) -> RigidBodyHandle {
+    fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, random_vel: bool, damping: f32, physics: &mut Physics, p_type: u128) -> RigidBodyHandle {
         let physics_properties = PhysicsProperties::new(0.1, 0.25, 1.0, damping, 0.3);
         let rbh = physics.add_dynamic(position, rotation, shape, physics_properties, random_vel, p_type);
         return rbh;
     } 
 
-    fn update(&mut self, physics: &mut World) {
+    fn update(&mut self, physics: &mut Physics) {
         //self.update_motor(physics);
         let physics_data = physics.get_physics_data(self.rigid_handle);
         self.pos = physics_data.position;
@@ -113,7 +119,7 @@ impl Physical for Element {
         } */
     }
 
-    fn draw(&self, display_mode: DisplayMode, physics: &World) {
+    fn draw(&self, display_mode: DisplayMode, physics: &Physics) {
         let settings = get_settings();
         match display_mode {
             DisplayMode::ELEMENTS => {
@@ -127,13 +133,13 @@ impl Physical for Element {
             },
         }
         if settings.field_range {
-            let r = settings.field;
-            draw_circle_lines(self.pos.x, self.pos.y, r, 0.25, LIGHTGRAY);
+            let r = physics.get_physics_type(self.physics_type).get_field_range() * settings.field;
+            draw_circle_lines(self.pos.x, self.pos.y, r, 0.1, LIGHTGRAY);
         }
         
     }
 
-    fn draw_joint(&self, physics: &World) {
+    fn draw_joint(&self, physics: &Physics) {
         let rot_vec = Vec2::from_angle(self.rot)*100.0;
         match self.joint {
             Some(joint_handle) => {
@@ -186,7 +192,7 @@ impl Element {
         draw_circle(x0, y0, size*2.0, color);
     }
 
-    fn update_motor(&mut self, physics: &mut World) {
+    fn update_motor(&mut self, physics: &mut Physics) {
         match self.joint {
             None => {},
             Some(joint_handle) => {
@@ -196,36 +202,6 @@ impl Element {
         }
     }
 
-/*     fn edges_check(&mut self, body: &mut RigidBody) {
-        let settings = get_settings();
-        let world_w = settings.width;
-        let world_h = settings.height;
-        let mut raw_pos = matrix_to_vec2(body.position().translation);
-        let mut out_of_edge = false;
-        if raw_pos.x < 0.0 {
-            raw_pos.x = 0.0;
-            out_of_edge = true;
-        } else if raw_pos.x > world_w {
-            raw_pos.x = world_w;
-            out_of_edge = true;
-        }
-        if raw_pos.y < 0.0 {
-            raw_pos.y = 0.0;
-            out_of_edge = true;
-        } else if raw_pos.y > world_h {
-            raw_pos.y = world_h;
-            out_of_edge = true;
-        }
-        if out_of_edge {
-            let vel = body.linvel();
-            let x = -vel.x;
-            let y = -vel.y;
-            let v = Vector2::new(x, y);
-            body.set_linvel(v, true);
-            body.set_position(make_isometry(raw_pos.x, raw_pos.y, self.rot), true);
-        }
-    } */
-
     fn out_of_edges(&mut self, body: &mut RigidBody) {
         let settings = get_settings();
         let r = settings.world_radius;
@@ -233,18 +209,18 @@ impl Element {
         let dist_from_center = Vec2::ZERO.distance(raw_pos).abs();
         let dir = (raw_pos).normalize_or_zero();
         if dist_from_center >= r/2. {
-            let hold_force = -dir * (r/2.0 - dist_from_center);
+            let hold_force = dir * (r/2.0 - dist_from_center)/5.0;
             let hf = vector![hold_force.x, hold_force.y];
             body.apply_impulse(hf, true) 
         };
     }
 
-    pub fn set_damping(&mut self, damping: f32, physics: &mut World) {
+    pub fn set_damping(&mut self, damping: f32, physics: &mut Physics) {
         let rb = physics.rigid_bodies.get_mut(self.rigid_handle).unwrap();
         rb.set_linear_damping(damping);
     }
 
-    pub fn set_size(&mut self, size: f32, density: f32, physics: &mut World) {
+    pub fn set_size(&mut self, size: f32, density: f32, physics: &mut Physics) {
         let rb = physics.rigid_bodies.get_mut(self.rigid_handle).unwrap();
         if let Some(collider_handle) = rb.colliders().first() {
             let ch = *collider_handle;
@@ -272,13 +248,13 @@ impl ElementCollector {
         }
     }
 
-    pub fn add_many_elements(&mut self, elements_num: usize, physics: &mut World) {
+    pub fn add_many_elements(&mut self, elements_num: usize, physics: &mut Physics) {
         for _ in 0..elements_num {
             _ = self.add_element(None, GREEN, None, false, physics);
         }
     }
 
-    pub fn add_element(&mut self, position: Option<Vec2>, color: Color, no_random_size: Option<f32>, random_vel: bool, physics: &mut World) -> (u64, RigidBodyHandle) {
+    pub fn add_element(&mut self, position: Option<Vec2>, color: Color, no_random_size: Option<f32>, random_vel: bool, physics: &mut Physics) -> (u64, RigidBodyHandle) {
         let settings = get_settings();
         //let w = settings.width;
         //let h = settings.height;
@@ -311,14 +287,14 @@ impl ElementCollector {
         return (key, rbh);
     }
 
-    pub fn add_motor(&mut self, position: Vec2, physics: &mut World) {
+    /* pub fn add_motor(&mut self, position: Vec2, physics: &mut Physics) {
         let (k1, rbh1) = self.add_element(Some(position.clone()), YELLOW, Some(6.0), false, physics);
         let (k2, rbh2) = self.add_element(Some(position+Vec2::new(64.0, 0.0)), RED, Some(6.0), false, physics);
         let motor = physics.add_motor(rbh1, rbh2);
         let rb1 = physics.rigid_bodies.get_mut(rbh1).unwrap();
         let e = self.elements.get_mut(&k1).unwrap();
         e.joint = Some(motor);
-    }
+    } */
 
     pub fn get(&self, id: u64) -> Option<&Element> {
         return self.elements.get(&id);

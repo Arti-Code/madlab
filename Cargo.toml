@@ -1,6 +1,6 @@
 [package]
 name = "madlab"
-version = "0.5.5"
+version = "0.6.0"
 edition = "2021"
 authors = ["Artur Gwoździowski <gwozdyk@gmain.com>"]
 keywords = ["physics", "sandbox", "simulation"]
@@ -8,14 +8,17 @@ keywords = ["physics", "sandbox", "simulation"]
 
 [dependencies]
 macroquad = "0.3.26"
-rapier2d = { version = "0.17.2", features = [ "simd-stable" ] }
+rapier2d = { version = "0.18.0", features = [ "simd-stable", "debug-render" ] }
 egui-macroquad = "0.15"
 crossbeam = "0.8.4"
-image = "0.24.8"
+image = "0.24.9"
 
 [build-dependencies]
-embed-resource = "2.4.1"
+embed-resource = "2.4.2"
 
 [profile.release]
 opt-level = 3
 build-override.opt-level = 3
+
+[build]
+rustflags = ["-Z", "threads=8"]

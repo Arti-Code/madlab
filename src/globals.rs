@@ -2,24 +2,14 @@
 use macroquad::experimental::collections::storage;
 
 
-pub const SCREEN_WIDTH: f32 = 1200.0;
-pub const SCREEN_HEIGHT: f32 = 800.0;
-pub const WORLD_W: f32 = 3000.0;
-pub const WORLD_H: f32 = 2000.0;
+pub const SCREEN_WIDTH: f32 = 950.0;
+pub const SCREEN_HEIGHT: f32 = 950.0;
 
-pub const ELEMENT_SIZE: f32 = 1.0;
-pub const ELEMENT_NUM: i32 = 2000;
-pub const ELEMENT_SPEED: f32 = 50.0;
+pub const ZOOM_RATE: f32 = 1.0 / 200.0;
+pub const SCREEN_RATIO: f32 = 1.0;
+//pub const SCREEN_RATIO: f32 = SCREEN_HEIGHT / SCREEN_WIDTH;
 
-pub const ZOOM_RATE: f32 = 1.0 / 800.0;
-pub const SCREEN_RATIO: f32 = SCREEN_WIDTH / SCREEN_HEIGHT;
-
-pub const GRAV: f32 = 0.0;
-pub const FIELD: f32 = 50.0;
-
-pub const PRECISION: f32 = 0.05;
-pub const FORCE: f32 = 10.0;
-pub const TYPES_NUM: u64 = 19;
+pub const TYPES_NUM: usize = 19;
 
 #[derive(Clone, Copy)]
 pub enum DisplayMode {
@@ -28,37 +18,35 @@ pub enum DisplayMode {
     ENERGY,
 
 }
-pub fn set_global_settings(settings: Settings) {
+pub fn set_settings(settings: Settings) {
     storage::store(settings);
 }
 
 pub fn get_settings() -> Settings {
-    return *storage::get::<Settings>();
-}
-
-pub fn get_mut_settings() -> Settings {
     return *storage::get_mut::<Settings>();
 }
 
-pub fn set_global_signals(signals: Signals) {
+/* pub fn get_mut_settings() -> Settings {
+    return *storage::get_mut::<Settings>();
+} */
+
+pub fn set_signals(signals: Signals) {
     storage::store(signals);
 }
 
-pub fn get_signals() -> Signals {
-    return *storage::get::<Signals>();
-}
-
-pub fn get_mut_signals() -> Signals {
+pub fn signals() -> Signals {
     return *storage::get_mut::<Signals>();
 }
+
+/* pub fn get_mut_signals() -> Signals {
+    return *storage::get_mut::<Signals>();
+} */
 
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub world_radius: f32,
     pub field: f32,
     pub force: f32,
-    pub strong_force: f32,
-    pub strong_field: f32,
     pub repel: f32,
     pub particles_num: usize,
     pub particle_types: usize,
@@ -67,24 +55,26 @@ pub struct Settings {
     pub damping: f32,
     pub display: DisplayMode,
     pub field_range: bool,
+    pub repel_on: bool,
+    pub collisions: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            world_radius: 1600.0,
-            field: 70.0,
-            force: 5.0,
-            repel: 0.35,
-            particles_num: 1000,
+            world_radius: 2500.0,
+            field: 60.0,
+            force: 15.0,
+            repel: 0.3,
+            particles_num: 2000,
             particle_types: 19,
             particle_size: 1.0,
             particle_dense: 1.0,
             damping: 1.0,
             display: DisplayMode::ELEMENTS,
-            strong_force: 500.0,
-            strong_field: 0.1,
             field_range: false,
+            repel_on: true,
+            collisions: false,
        }
     }
 }

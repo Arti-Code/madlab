@@ -1,8 +1,10 @@
 use std::path::Path;
 
-use egui_macroquad::{*, egui::{Context, TopBottomPanel, RichText, Color32, menu, Align2, Label, Slider, Window, TextureHandle, ColorImage, Ui}};
+use egui_macroquad::{*, egui::{menu, Align2, Color32, ColorImage, Context, Label, RichText, Slider, TextureHandle, TopBottomPanel, Ui, Window}};
 use egui_macroquad::egui::Vec2 as UIVec2;
-use macroquad::time::{get_frame_time, get_fps}; 
+use macroquad::time::{get_frame_time, get_fps};
+use macroquad::math::clamp; 
+use egui_macroquad::egui::vec2;
 use crate::globals::*;
 
 pub struct UI {
@@ -24,8 +26,8 @@ impl UI {
             monitor_win: false,
             settings_win: false,
             about_win: false,
-            logo: Self::load_textures("atom"),
-            big_logo: Self::load_textures("atom_med"),
+            logo: Self::load_textures("science32"),
+            big_logo: Self::load_textures("science128"),
         }
     }
 
@@ -62,7 +64,8 @@ impl UI {
     }
 
     fn build_top_menu(&mut self, egui_ctx: &Context) {
-        let mut signals = get_signals();
+        let mut signals = signals();
+        let mut settings =  get_settings();
         TopBottomPanel::top("top_panel").default_height(100.0).show(egui_ctx, |ui| {
             if !self.pointer_over {
                 self.pointer_over = ui.ui_contains_pointer();
@@ -78,7 +81,7 @@ impl UI {
                 menu::menu_button(ui, RichText::new("SIM").strong(), |ui| {
                     if ui.button(RichText::new("Start New Sim").strong().color(Color32::GREEN)).clicked() {
                         signals.start_new_sim = true;
-                        set_global_signals(signals);
+                        set_signals(signals);
                     }
                     if ui.button(RichText::new("Quit").strong().color(Color32::RED)).clicked() {
                         std::process::exit(0);
@@ -87,12 +90,37 @@ impl UI {
 
                 ui.separator();
                 menu::menu_button(ui, RichText::new("SETTINGS").strong(), |ui| {
-                    if ui.button(RichText::new("Rules").strong().color(Color32::GREEN)).clicked() {
+                    if ui.button(RichText::new("Settings").strong().color(Color32::GREEN)).clicked() {
                         self.settings_win = !self.settings_win;
                     }
-                    if ui.button(RichText::new("Shuffle interactions").strong().color(Color32::GREEN)).clicked() {
+                });
+
+                ui.separator();
+                let mut onoff = String::from("Enable Repel");
+                let mut color = Color32::GREEN;
+                let mut collisions_label = "Enable Collisions".to_string();
+                let mut col_collisions = Color32::YELLOW;
+                if settings.collisions {
+                    collisions_label = "Disable Collisions".to_string();
+                    col_collisions = Color32::GREEN;
+                }
+                if settings.repel_on {
+                    color = Color32::YELLOW;
+                    onoff = "Disable Repel".to_string();
+                }
+
+                menu::menu_button(ui, RichText::new("RULES").strong(), |ui| {
+                    if ui.button(RichText::new(onoff).strong().color(color)).clicked() {
+                        settings.repel_on = !settings.repel_on;
+                        set_settings(settings);
+                    }
+                    if ui.button(RichText::new(collisions_label).strong().color(col_collisions)).clicked() {
+                        settings.collisions = !settings.collisions;
+                        set_settings(settings);
+                    }
+                    if ui.button(RichText::new("Shuffle Particles").strong().color(Color32::GREEN)).clicked() {
                         signals.shuffle_interactions = true;
-                        set_global_signals(signals);
+                        set_signals(signals);
                     }
                 });
                 
@@ -102,24 +130,24 @@ impl UI {
                         self.monitor_win = !self.monitor_win;
                     }
                     if ui.button(RichText::new("Display Filled Elements").strong().color(Color32::GREEN)).clicked() {
-                        let mut settings = get_settings();
-                        settings.display = DisplayMode::ELEMENTS;
-                        set_global_settings(settings);
+                        let mut cfg = get_settings();
+                        cfg.display = DisplayMode::ELEMENTS;
+                        set_settings(cfg);
                     }
                     if ui.button(RichText::new("Display Elements Energy").strong().color(Color32::RED)).clicked() {
-                        let mut settings = get_settings();
-                        settings.display = DisplayMode::ENERGY;
-                        set_global_settings(settings);
+                        let mut cfg = get_settings();
+                        cfg.display = DisplayMode::ENERGY;
+                        set_settings(cfg);
                     }
                     if ui.button(RichText::new("Display Stroke Elements").strong().color(Color32::BLUE)).clicked() {
-                        let mut settings = get_settings();
-                        settings.display = DisplayMode::STROKE;
-                        set_global_settings(settings);
+                        let mut cfg = get_settings();
+                        cfg.display = DisplayMode::STROKE;
+                        set_settings(cfg);
                     }
                     if ui.button(RichText::new("Show Field Range").strong().color(Color32::BLUE)).clicked() {
-                        let mut settings = get_settings();
-                        settings.field_range = !settings.field_range;
-                        set_global_settings(settings);
+                        let mut cfg = get_settings();
+                        cfg.field_range = !cfg.field_range;
+                        set_settings(cfg);
                     }
                 });
 
@@ -136,12 +164,19 @@ impl UI {
 
     fn build_monitor_win(&mut self, egui_ctx: &Context, fps: i32, fps2: i32) {
         if self.monitor_win {
-            egui::Window::new("Monitor").default_height(80.0).anchor(Align2::RIGHT_TOP, [0.0, 0.0]).show(egui_ctx, |win| {
+            let red = 1.0 - clamp(fps2 as f32, 0.0, 60.0) / 60.0;
+            let green = clamp(fps2 as f32, 0.0, 60.0) / 60.0;
+            //let green = 1.0 - red;
+            let i = 1.0/(red+green);
+            let r = (red*i * 255.0) as u8;
+            let g = (green*i * 255.0) as u8;
+            let color = Color32::from_rgb(r, g, 0);
+            egui::Window::new("Monitor").default_height(200.0).anchor(Align2::RIGHT_TOP, [0.0, 0.0]).show(egui_ctx, |win| {
                 win.vertical(|ui| {
                     let dt = (get_frame_time()*100.0).round()/100.0;
                     //let fps = get_fps();
                     let txt = format!("dT: {} | FPS: {}({})", dt, fps, fps2);
-                    ui.add(Label::new(RichText::new(txt).color(Color32::GREEN).strong()));
+                    ui.add(Label::new(RichText::new(txt).color(color).strong()));
                 })
             });
         }
@@ -152,105 +187,108 @@ impl UI {
             return;
         }
         let mut settings = get_settings();
-        egui::Window::new("SETTINGS").id("settings_win".into()).default_pos((SCREEN_WIDTH/2., 0.0)).fixed_size([400., 400.])
+        let w = 200.0; let h = 400.0;
+        egui::Window::new("SETTINGS").id("settings_win".into()).default_pos((SCREEN_WIDTH/2.-w/2., 0.0)).default_size(vec2(w, h))
         .title_bar(true).show(egui_ctx, |ui| {
+            //ui.set_height_range(300.0..=600.0);
+            //ui.set_min_width(w-50.0);
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(125., 25.));
                 let mut world_radius = settings.world_radius;
                 column[0].label(RichText::new("WORLD RANGE").color(Color32::YELLOW).strong());
-                if column[1].add(Slider::new(&mut world_radius, 100.0..=4000.0).step_by(100.0)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut world_radius, 100.0..=4000.0).step_by(100.0)).changed() {
                     settings.world_radius = world_radius;
-                    set_global_settings(settings);
+                    set_settings(settings);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut particles_num = settings.particles_num;
                 column[0].label(RichText::new("PARTICLES NUMBER").color(Color32::YELLOW).strong());
-                if column[1].add(Slider::new(&mut particles_num, 0..=10000).step_by(100.0)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut particles_num, 0..=10000).step_by(10.0)).changed() {
                     settings.particles_num = particles_num;
-                    set_global_settings(settings);
+                    set_settings(settings);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut particle_size = settings.particle_size;
                 column[0].label(RichText::new("PARTICLES SIZE").color(Color32::RED).strong());
-                if column[1].add(Slider::new(&mut particle_size, 0.1..=5.0).step_by(0.1)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut particle_size, 0.1..=5.0).step_by(0.1)).changed() {
                     settings.particle_size = particle_size;
-                    let mut signals = get_signals();
+                    let mut signals = signals();
                     signals.particles_new_settings = true;
-                    set_global_settings(settings);
-                    set_global_signals(signals);
+                    set_settings(settings);
+                    set_signals(signals);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut particle_dense = settings.particle_dense;
                 column[0].label(RichText::new("PARTICLES DENSE").color(Color32::BLUE).strong());
-                if column[1].add(Slider::new(&mut particle_dense, 0.1..=5.0).step_by(0.1)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut particle_dense, 0.1..=5.0).step_by(0.1)).changed() {
                     settings.particle_dense = particle_dense;
-                    let mut signals = get_signals();
+                    let mut signals = signals();
                     signals.particles_new_settings = true;
-                    set_global_settings(settings);
-                    set_global_signals(signals);
+                    set_settings(settings);
+                    set_signals(signals);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut particle_types = settings.particle_types;
                 column[0].label(RichText::new("PARTICLE TYPES").color(Color32::LIGHT_BLUE).strong());
-                if column[1].add(Slider::new(&mut particle_types, 1..=19)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut particle_types, 1..=19)).changed() {
                     settings.particle_types = particle_types;
-                    set_global_settings(settings);
+                    set_settings(settings);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut field_radius = settings.field;
                 column[0].label(RichText::new("FIELD RADIUS").color(Color32::BLUE).strong());
-                if column[1].add(Slider::new(&mut field_radius, 0.0..=400.0).step_by(5.0)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut field_radius, 0.0..=500.0).step_by(1.0)).changed() {
                     settings.field = field_radius;
-                    set_global_settings(settings);
+                    set_settings(settings);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut force = settings.force;
                 column[0].label(RichText::new("FORCE").color(Color32::GREEN).strong());
-                if column[1].add(Slider::new(&mut force, 0.0..=50.0).step_by(1.0)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut force, 0.0..=100.0).step_by(1.0)).changed() {
                     settings.force = force;
-                    set_global_settings(settings);
+                    set_settings(settings);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut repel = settings.repel;
-                column[0].label(RichText::new("REPEL RELATIVE DISTANCE").color(Color32::RED).strong());
-                if column[1].add(Slider::new(&mut repel, 0.0..=1.0).step_by(0.01)).changed() {
+                column[0].label(RichText::new("REPEL").color(Color32::RED).strong());
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut repel, 0.0..=1.0).step_by(0.01)).changed() {
                     settings.repel = repel;
-                    set_global_settings(settings);
+                    set_settings(settings);
                 }
             });
             ui.columns(2, |column| {
-                column[0].set_max_size(UIVec2::new(80., 75.));
-                column[1].set_max_size(UIVec2::new(280., 75.));
+                column[0].set_max_size(UIVec2::new(60., 25.));
+                column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut damping = settings.damping;
                 column[0].label(RichText::new("DAMPING").color(Color32::DARK_BLUE).strong());
-                if column[1].add(Slider::new(&mut damping, 0.0..=4.0).step_by(0.1)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut damping, 0.0..=4.0).step_by(0.1)).changed() {
                     settings.damping = damping;
-                    set_global_settings(settings);
-                    let mut signals = get_signals();
+                    set_settings(settings);
+                    let mut signals = signals();
                     signals.particles_new_settings = true;
-                    set_global_signals(signals);
+                    set_signals(signals);
                 }
             });
         });
@@ -258,7 +296,7 @@ impl UI {
 
     fn build_about_win(&mut self, egui_ctx: &Context) {
         if self.about_win {
-            Window::new("ABOUT").resizable(false).default_pos((SCREEN_WIDTH/2.-150., SCREEN_HEIGHT/6.)).min_height(680.).min_width(300.)
+            Window::new("ABOUT").resizable(false).default_pos((SCREEN_WIDTH/2.-150., SCREEN_HEIGHT/6.)).min_height(680.).min_width(120.)
             .title_bar(true).show(egui_ctx, |ui| {
                 let big_logo = self.big_logo.clone().unwrap();
                 ui.vertical_centered(|pic| {
@@ -266,18 +304,18 @@ impl UI {
                 });
                 ui.add_space(2.0);
                 ui.vertical_centered(|title| {
-                    title.heading(RichText::new("MAD LAB").color(Color32::LIGHT_GREEN).strong());
+                    title.heading(RichText::new("MAD LAB").color(Color32::GREEN).strong());
                 });
                 ui.vertical_centered(|author| {
                     author.label(RichText::new("Artur Gwoździowski 2019-2024").color(Color32::LIGHT_BLUE).strong());
                 });
                 ui.add_space(2.0);
                 ui.vertical_centered(|author| {
-                    author.label(RichText::new(format!("version {}", env!("CARGO_PKG_VERSION"))).color(Color32::GOLD).italics());
+                    author.label(RichText::new(format!("version {}", env!("CARGO_PKG_VERSION"))).color(Color32::YELLOW).italics());
                 });
                 ui.add_space(2.0);
                 ui.vertical_centered(|closer| {
-                    if closer.button(RichText::new("CLOSE").color(Color32::LIGHT_BLUE).strong()).clicked() {
+                    if closer.button(RichText::new("CLOSE").color(Color32::GREEN).strong()).clicked() {
                         self.about_win = false;
                     }
                 });

@@ -73,7 +73,7 @@ pub fn angle2vec2(angle: f32) -> Vec2 {
     return v;
 }
 
-pub fn wrap_around(v: &Vec2) -> Vec2 {
+/* pub fn wrap_around(v: &Vec2) -> Vec2 {
     let tolerance = 5.0;
     let mut vr = Vec2::new(v.x, v.y);
     if vr.x > WORLD_W + tolerance {
@@ -87,7 +87,7 @@ pub fn wrap_around(v: &Vec2) -> Vec2 {
         vr.y = WORLD_H + tolerance;
     }
     return vr;
-}
+} */
 
 pub fn make_isometry(posx: f32, posy: f32, rotation: f32) -> Isometry2<f32> {
     let iso = Isometry2::new(Vector2::new(posx, posy), rotation);

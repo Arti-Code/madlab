@@ -24,3 +24,4 @@ particles/assets/img/physix.png
 .gitignore
 madlab2.exe
 Cargo.lock
+madlab3.exe

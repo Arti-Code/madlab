@@ -46,7 +46,7 @@ impl Collector<P> {
     }
 
     pub fn add_element<P>(&mut self, mut element: &impl PhysicsObject, physics_world: &mut World) -> u64 {
-=        let key = element.key;
+        let key = element.key;
         //let handle = physics_world.add_poly_body(key,&element.pos, element.points2.clone());
         let handle = physics_world.add_particle(&element.pos, element.size);
         element.physics_handle = Some(handle);

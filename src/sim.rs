@@ -6,7 +6,7 @@ use crate::globals::*;
 use crate::timer::Timer;
 use crate::ui::*;
 use crate::util::*;
-use crate::world::*;
+use crate::physics::*;
 //use egui_macroquad;
 use macroquad::camera::Camera2D;
 use macroquad::prelude::*;
@@ -15,9 +15,9 @@ use std::f32::consts::PI;
 
 pub struct Simulation {
     pub simulation_name: String,
-    pub world_size: Vec2,
+    //pub world_size: Vec2,
     pub font: Font,
-    pub world: World,
+    pub world: Physics,
     pub camera: Camera2D,
     pub running: bool,
     pub sim_time: f64,
@@ -44,12 +44,12 @@ impl Simulation {
     pub fn new(configuration: SimConfig, font: Font) -> Self {
         Self {
             simulation_name: String::new(),
-            world_size: Vec2 {
+/*             world_size: Vec2 {
                 x: WORLD_W,
                 y: WORLD_H,
-            },
+            }, */
             font,
-            world: World::new(),
+            world: Physics::new(),
             camera: create_camera(),
             running: true,
             sim_time: 0.0,
@@ -80,7 +80,7 @@ impl Simulation {
             Some(name) => name.to_string(),
             None => String::new(),
         };
-        self.world = World::new();
+        self.world = Physics::new();
         self.elements = ElementCollector::new();
         //self.elements = ObjectCollector::new();
         self.sim_time = 0.0;
@@ -138,6 +138,7 @@ impl Simulation {
         //set_default_camera();
         set_camera(&self.camera);
         clear_background(BLACK);
+        self.world.debug_draw();
         //draw_rectangle_lines(0.0, 0.0, w, h, 3.0, WHITE);
         //draw_circle_lines(0.0, 0.0, r, 2.0, MAGENTA);
         draw_smooth_circle(r, Vec2::ZERO, 32., 1.0, LIGHTGRAY);
@@ -164,21 +165,8 @@ impl Simulation {
         }
     }
 
-    fn draw_grid(&self, cell_size: u32) {
-        let w = self.world_size.x;
-        let h = self.world_size.y;
-        let col_num = (w / cell_size as f32).floor() as u32;
-        let row_num = (h / cell_size as f32).floor() as u32;
-        //draw_grid(100, 20.0, GRAY, DARKGRAY);
-        for x in 0..col_num + 1 {
-            for y in 0..row_num + 1 {
-                draw_circle((x * cell_size) as f32, (y * cell_size) as f32, 1.0, GRAY);
-            }
-        }
-    }
-
     pub fn signals_check(&mut self) {
-        let mut signals = get_signals();
+        let mut signals = signals();
         if signals.shuffle_interactions {
             signals.shuffle_interactions = false;
             self.world.random_types();
@@ -200,7 +188,7 @@ impl Simulation {
             self.set_particles_damping(settings.damping);
             self.set_particles_size(settings.particle_size, settings.particle_dense);
         }
-        set_global_signals(signals);
+        set_signals(signals);
     }
 
     pub fn input(&mut self) {
@@ -230,11 +218,11 @@ impl Simulation {
         self.sim_state.physics_num = self.world.get_physics_obj_num() as i32;
     }
 
-    fn check_agents_num(&mut self) {
+/*     fn check_agents_num(&mut self) {
         if self.elements.count() < ELEMENT_NUM as usize {
             self.elements.add_many_elements(1, &mut self.world);
         }
-    }
+    } */
 
     fn calc_selection_time(&mut self) {
         self.select_phase += self.sim_state.dt * 4.0;

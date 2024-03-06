@@ -1,3 +1,5 @@
+
+
 use crossbeam::channel::{Receiver, Sender};
 use crossbeam::*;
 use rapier2d::parry::shape::Ball;
@@ -10,8 +12,12 @@ use nalgebra::Point2;
 use rapier2d::{na::Vector2, prelude::*};
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::num::NonZeroUsize;
+use std::ops::Bound;
+use crate::dbg::MacroRapierDebugger;
+use crate::physics_types::*;
 
-pub struct World {
+pub struct Physics {
     pub rigid_bodies: RigidBodySet,
     pub colliders: ColliderSet,
     gravity: Vector2<f32>,
@@ -26,23 +32,39 @@ pub struct World {
     ccd_solver: CCDSolver,
     physics_hooks: (),
     event_handler: (),
+    debug_render_pipeline: DebugRenderPipeline,
+    debug_renderer: MacroRapierDebugger,
     //event_handler: ChannelEventCollector,
     grav_time: Timer,
     pub types: PhysicsTypes,
+    //pub types2: PhysicsTypes2,
 }
 
-impl World {
+impl Physics {
 
     pub fn new() -> Self {
         let solver_params = IntegrationParameters {
-            interleave_restitution_and_friction_resolution: false,
             max_ccd_substeps: 1,
-            max_stabilization_iterations: 1,
-            max_velocity_iterations: 1,
-            prediction_distance: 0.001,
+            prediction_distance: 0.005,
+            dt: 1.0/60.0,
+            min_island_size: 32,
+            allowed_linear_error: 0.004,
+            num_solver_iterations: NonZeroUsize::new(1).unwrap(),
+            num_additional_friction_iterations: 2,
             ..Default::default()
         };
-
+        let dbg_cfg = DebugRenderStyle {
+            collider_dynamic_color: [1.0, 0.0, 0.0, 1.0],
+            collider_kinematic_color: [1.0, 1.0, 0.0, 1.0],
+            impulse_joint_anchor_color: [0.0, 0.0, 1.0, 1.0],
+            impulse_joint_separation_color: [0.0, 0.0, 1.0, 1.0],
+            ..Default::default()
+        };
+        let dbg_mode = 
+            //DebugRenderMode::COLLIDER_SHAPES | 
+            DebugRenderMode::IMPULSE_JOINTS | 
+            DebugRenderMode::JOINTS;
+            //DebugRenderMode::SOLVER_CONTACTS;
         Self {
             rigid_bodies: RigidBodySet::new(),
             colliders: ColliderSet::new(),
@@ -58,41 +80,17 @@ impl World {
             ccd_solver: CCDSolver::new(),
             physics_hooks: (),
             event_handler: (),
+            debug_render_pipeline: DebugRenderPipeline::new(dbg_cfg, dbg_mode),
+            debug_renderer: MacroRapierDebugger,
             //event_handler: event_handler,
             grav_time: Timer::new(0.66, true, true, false),
             types: PhysicsTypes::random(),
+            //types2: PhysicsTypes2::random(50),
         }
     }
 
     pub fn random_types(&mut self) {
         self.types = PhysicsTypes::random();
-    }
-
-    fn update_grav(&mut self) {
-        if self.grav_time.update(get_frame_time()) {
-
-            let mut gravity_map: HashMap<RigidBodyHandle, Vec2> = HashMap::new();
-            for (id1, body1) in self.rigid_bodies.iter() {
-                let mut gforce = Vec2::ZERO;
-                let pos1 = matrix_to_vec2(body1.position().translation);
-                let coll1 = self.colliders.get(*body1.colliders().first().unwrap()).unwrap();
-                let size1 = coll1.shape().as_ball().unwrap().radius;
-                for (_, body2) in self.rigid_bodies.iter() { 
-                    let pos2 = matrix_to_vec2(body2.position().translation);
-                    let coll2 = self.colliders.get(*body2.colliders().first().unwrap()).unwrap();
-                    let size2 = coll2.shape().as_ball().unwrap().radius;
-                    let dir = (pos1-pos2).normalize_or_zero();
-                    let dist = pos2.distance_squared(pos1);
-                    gforce += GRAV*((size1+size2)/2.0)*dir/dist; 
-                }
-                gravity_map.insert(id1, gforce);
-            }
-            /* for (rbh, gforce) in gravity_map.iter() {
-                let rb = self.rigid_bodies.get_mut(*rbh).unwrap();
-                rb.reset_forces(true);
-                rb.add_force(vector![gforce.x, gforce.y], true);
-            } */
-        }
     }
 
     fn update_intersections(&mut self) {
@@ -109,28 +107,29 @@ impl World {
             .build();
         let rb_handle = self.rigid_bodies.insert(rigid);
         let _coll_handle = self.colliders.insert_with_parent(collider,rb_handle, &mut self.rigid_bodies);
-        //let object = self.rigid_bodies.get_mut(rb_handle).unwrap();
-        //let v = random_unit_vec2();
-        //object.set_linvel(Vector2::new(v.x, v.y)*PARTICLE_SPEED, true);
         return rb_handle;
     }
 
     pub fn add_dynamic_rigidbody(&mut self, position: &Vec2, rotation: f32, linear_damping: f32, angular_damping: f32, p_type: u128) -> RigidBodyHandle {
         let pos = Isometry::new(Vector2::new(position.x, position.y), rotation);
-        let dynamic_body = RigidBodyBuilder::dynamic().position(pos)
+        let dynamic_body = RigidBodyBuilder::dynamic().position(pos).can_sleep(true).ccd_enabled(false)
             .linear_damping(linear_damping).angular_damping(angular_damping)
             .sleeping(false).user_data(p_type).build();
         return self.rigid_bodies.insert(dynamic_body);
     }
 
     pub fn add_collider(&mut self, body_handle: RigidBodyHandle, rel_position: &Vec2, rotation: f32, shape: SharedShape, physics_props: PhysicsProperties) -> ColliderHandle {
+        let mut collision_types = ActiveCollisionTypes::DYNAMIC_DYNAMIC;
+        let settings = get_settings();
+        if settings.collisions {
+            collision_types = ActiveCollisionTypes::DYNAMIC_DYNAMIC;
+        }
         let iso = make_isometry(rel_position.x, rel_position.y, rotation);
         let collider = match shape.shape_type() {
             ShapeType::Ball => {
                 //let radius = shape.0.as_ball().unwrap().radius;
                 ColliderBuilder::new(shape).position(iso).density(physics_props.density).friction(physics_props.friction).restitution(physics_props.restitution)
-                    .active_collision_types(ActiveCollisionTypes::empty()).active_events(ActiveEvents::empty())
-                    .active_collision_types(ActiveCollisionTypes::DYNAMIC_DYNAMIC).active_events(ActiveEvents::empty())
+                    .active_collision_types(collision_types).active_events(ActiveEvents::empty())
                     .build()
             },
             ShapeType::ConvexPolygon => {
@@ -144,25 +143,21 @@ impl World {
         return self.colliders.insert_with_parent(collider, body_handle, &mut self.rigid_bodies);
     }
 
-    pub fn add_dynamic(&mut self, position: &Vec2, rotation: f32, shape: SharedShape, physics_props: PhysicsProperties, random_vel: bool, p_type: u128) -> RigidBodyHandle {
+    pub fn add_dynamic(&mut self, position: &Vec2, rotation: f32, shape: SharedShape, physics_props: PhysicsProperties, _random_vel: bool, p_type: u128) -> RigidBodyHandle {
         let rbh = self.add_dynamic_rigidbody(position, rotation, physics_props.linear_damping, physics_props.angular_damping, p_type);
         let _colh = self.add_collider(rbh, &Vec2::ZERO, 0.0, shape, physics_props);
-        if random_vel {
-            let object = self.rigid_bodies.get_mut(rbh).unwrap();
-            let v = random_unit_vec2();
-            object.set_linvel(Vector2::new(v.x, v.y)*ELEMENT_SPEED, true);
-        }
         return rbh;
     }
 
-    pub fn add_motor(&mut self, rbh1: RigidBodyHandle, rbh2: RigidBodyHandle) -> ImpulseJointHandle {
-        let motor = RevoluteJointBuilder::new().motor_velocity(10000.0, 0.1).contacts_enabled(false)
-            .local_anchor1(Point2::new(-15.0, 0.0)).local_anchor2(Point2::new(-30.0, 0.0))
-            .limits([0.0, 0.0]).motor_model(MotorModel::AccelerationBased).build();
-        //motor.data.as_prismatic_mut().unwrap().set_limits([64.0, 72.0]);
-        //motor.data.as_revolute_mut().unwrap().motor_velocity(1.0, 0.1).contacts_enabled(false).limits([2.0*PI, 2.0*PI]);
-        let motor_handle = self.impulse_joint_set.insert(rbh1, rbh2, motor, true);
-        return motor_handle;
+    pub fn add_bound(&mut self, rbh1: RigidBodyHandle, rbh2: RigidBodyHandle) -> ImpulseJointHandle {
+        let pos1 = self.get_object_position(rbh1).unwrap();
+        let pos2 = self.get_object_position(rbh2).unwrap();
+        let d1 = (pos2 - pos1);
+        
+        let bound = RopeJointBuilder::new(10.0)
+            .local_anchor1(Point2::new(0.0, 0.0)).local_anchor2(Point2::new(d1.x, d1.y)).build();
+        let bound_handle = self.impulse_joint_set.insert(rbh1, rbh2, bound, true);
+        return bound_handle;
     }
 
     pub fn remove_physics_object(&mut self, body_handle: RigidBodyHandle) {
@@ -182,13 +177,20 @@ impl World {
         return body_num;
     }
 
-    pub fn field_react(&mut self, position: Vec2, size: f32, p_type: u128, handle: RigidBodyHandle) {
+    pub fn get_physics_type(&self, id: u128) -> &PhysicsType {
+        return self.types.get_type(id);
+    }
+
+    pub fn field_react(&mut self, position: Vec2, _size: f32, p_type: u128, handle: RigidBodyHandle) {
         let settings = get_settings();
-        let radius = settings.field * size;
+        let particle_type0 = self.types.get_type(p_type);
+        //let f0 = particle_type0.actions.get(p_type as usize).unwrap();
+        let field_radius = particle_type0.get_field_range() * settings.field;
+        //let radius = settings.field * 0.5 + settings.field * f0;
         let force = settings.force;
         let repel = settings.repel;
         let iso0 = make_isometry(position.x, position.y, 0.0);
-        let field = Ball::new(radius);
+        let field = Ball::new(field_radius);
         let filter = QueryFilter {
             flags: QueryFilterFlags::ONLY_DYNAMIC | QueryFilterFlags::EXCLUDE_SENSORS,
             groups: None,
@@ -196,34 +198,29 @@ impl World {
             exclude_rigid_body: Some(handle),
             ..Default::default()
         };
-        let particle_type = self.types.types.get(&p_type).unwrap();
         let mut impulse = Vec2::ZERO;
         self.query_pipeline.intersections_with_shape(&self.rigid_bodies, &self.colliders, &iso0, &field, filter,
             |collided| {
                 let particle1_collider = self.colliders.get(collided).unwrap();
                 let particle1_handle = particle1_collider.parent().unwrap();
                 let particle1 = self.rigid_bodies.get(particle1_handle).unwrap();
-                //let size1 = particle1_collider.shape().as_ball().unwrap().radius;
-                //let f = force * (size + size1)/2.0;
                 let f = force;
-                //let sf = settings.strong_force;
                 let t1 = particle1.user_data;
-                let a = particle_type.actions[t1 as usize];
+                let a = particle_type0.get_action(t1 as usize);
                 let pos2 = matrix_to_vec2(particle1.position().translation);
                 let dist = position.distance(pos2);
-                let rel_dist = dist/radius;
+                let rel_dist = dist/field_radius;
                 let mut scalar = 0.0;
                 let vector = (pos2 - position).normalize_or_zero();
                 if rel_dist >= repel && rel_dist != 0.0 {
-                    scalar = (f * a) / (repel/rel_dist).powi(2);
-                } else if rel_dist < repel && rel_dist != 0.0 {
-                    scalar = -(f * a.abs()) / ((rel_dist/repel).powi(2));
-                    //scalar = 0.0;
+                    scalar = (f * a) / rel_dist;
+                } else if rel_dist != 0.0 {
+                    if !settings.repel_on {
+                        scalar = 0.0;
+                    } else {
+                        scalar = -f; // / rel_dist;
+                    }
                 }
-                //if rel_dist <= settings.strong_field {
-                    //scalar = -sf;
-                    //impulse -= vector * settings.strong_force;
-                //}
                 impulse += vector * scalar;
                 return true;
             },
@@ -234,11 +231,6 @@ impl World {
     }
 
     pub fn step_physics(&mut self) {
-        //let (collision_send, collision_recv) = crossbeam::channel::unbounded();
-        //let (contact_force_send, contact_force_recv) = crossbeam::channel::unbounded();
-        //let event_handler = ChannelEventCollector::new(collision_send, contact_force_send);
-        //self.update_grav();
-        
         self.physics_pipeline.step(
             &self.gravity,
             &self.integration_parameters,
@@ -254,11 +246,6 @@ impl World {
             &self.physics_hooks,
             &self.event_handler,
         );
-
-        //while let Ok(collision_event) = collision_recv.try_recv() {
-            // Handle the collision event.
-            //println!("Received collision event: {:?}", collision_event);
-        //}
     }
 
     fn iso_to_vec2_rot(&self, isometry: &Isometry<Real>) -> (Vec2, f32) {
@@ -280,7 +267,7 @@ impl World {
             data
         } else {
             PhysicsData {
-                position: Vec2::new(WORLD_W / 2., WORLD_H / 2.),
+                position: Vec2::ZERO,
                 rotation: 0.0,
                 mass: 0.0,
                 kin_eng: Some(0.0),
@@ -321,78 +308,17 @@ impl World {
         }
     }
 
-    
-}
-
-pub struct PhysicsData {
-    pub position: Vec2,
-    pub rotation: f32,
-    pub mass: f32,
-    pub kin_eng: Option<f32>,
-}
-
-pub struct PhysicsProperties {
-    pub friction: f32,
-    pub restitution: f32,
-    pub density: f32,
-    pub linear_damping: f32,
-    pub angular_damping: f32,
-}
-
-impl Default for PhysicsProperties {
-    
-    fn default() -> Self {
-        Self { friction: 0.5, restitution: 0.5, density: 0.5, linear_damping: 0.1, angular_damping: 0.9 }
+    pub fn debug_draw(&mut self) {
+        self.debug_render_pipeline.render(
+            &mut self.debug_renderer, 
+            &self.rigid_bodies, 
+            &self.colliders, 
+            &self.impulse_joint_set, 
+            &self.multibody_joint_set, 
+            &self.narrow_phase
+        );
     }
 }
 
-impl PhysicsProperties {
-    
-    pub fn new(friction: f32, restitution: f32, density: f32, linear_damping: f32, angular_damping: f32) -> Self {
-        Self { friction, restitution, density, linear_damping, angular_damping }
-    }
 
-    pub fn bounce() -> Self {
-        Self { friction: 0.0, restitution: 1.0, density: 1.0, linear_damping: 0.1, angular_damping: 0.1 }
-    }
 
-    pub fn free() -> Self {
-        Self { friction: 0.0, restitution: 1.4, density: 0.1, linear_damping: 0.01, angular_damping: 0.01 }
-    }
-}
-
-pub struct PhysicsType {
-    pub type_id: u128,
-    pub actions: [f32; TYPES_NUM as usize],
-    pub color: Color,
-}
-
-impl PhysicsType {
-    pub fn new(type_id: u128, color: Color) -> Self {
-        let mut actions: [f32; TYPES_NUM as usize] = [0.0; TYPES_NUM as usize];
-        for i in 0..TYPES_NUM as usize {
-            let a = rand::gen_range(-1.0, 1.0);
-            actions[i] = a;
-        }
-        Self { type_id, actions, color }
-    }
-}
-
-pub struct PhysicsTypes {
-    pub types: HashMap<u128, PhysicsType>,
-}
-
-impl PhysicsTypes {
-    pub fn random() -> Self {
-        let mut types: HashMap<u128, PhysicsType> = HashMap::new();
-        let colors = vec![RED, GREEN, BLUE, YELLOW, ORANGE, MAGENTA, DARKGREEN, PURPLE, PINK, VIOLET, DARKBLUE, WHITE, SKYBLUE, LIME, DARKPURPLE, BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY ];
-        for n in 0..colors.len() {
-            //let action: f32 = rand::gen_range(-1.0, 1.0);
-            let type_id = n as u128;
-            let color = colors[n];
-            let t = PhysicsType::new(type_id, color);
-            types.insert(type_id, t);
-        }
-        Self { types }
-    }
-}

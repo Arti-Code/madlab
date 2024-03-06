@@ -8,9 +8,11 @@ mod sim;
 mod timer;
 mod element;
 mod util;
-mod world;
+mod physics;
 mod ui;
 mod globals;
+mod dbg;
+mod physics_types;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use crate::globals::*;
@@ -27,7 +29,7 @@ impl App {
     pub fn new(font: Font) -> App {
         let config = SimConfig::default();
         let signals = Signals::default();
-        set_global_signals(signals);
+        set_signals(signals);
         Self {
             sim: Simulation::new(config, font.clone()),
         }
@@ -51,7 +53,7 @@ impl App {
 
 fn app_configuration() -> Conf {
     Conf {
-        window_title: "LAB OF MADNESS".to_string(),
+        window_title: "MAD LAB".to_string(),
         window_width: SCREEN_WIDTH as i32,
         window_height: SCREEN_HEIGHT as i32,
         sample_count: 16,
@@ -68,7 +70,7 @@ async fn main() {
     println!("SEED: {}", seed);
     rand::srand(seed);  
     let settings = Settings::default();
-    set_global_settings(settings);
+    set_settings(settings);
     let font = load_ttf_font("jetbrain.ttf").await.expect("can't load font resource!");
     let mut app = App::new(font);
     app.run().await;
