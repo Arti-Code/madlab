@@ -65,7 +65,7 @@ impl Default for Settings {
             world_radius: 2500.0,
             field: 60.0,
             force: 15.0,
-            repel: 0.3,
+            repel: 0.55,
             particles_num: 2000,
             particle_types: 19,
             particle_size: 1.0,

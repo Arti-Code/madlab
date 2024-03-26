@@ -212,14 +212,16 @@ impl Physics {
                 let rel_dist = dist/field_radius;
                 let mut scalar = 0.0;
                 let vector = (pos2 - position).normalize_or_zero();
-                if rel_dist >= repel && rel_dist != 0.0 {
+                if rel_dist > repel && rel_dist != 0.0 {
                     scalar = (f * a) / rel_dist;
-                } else if rel_dist != 0.0 {
+                } else if rel_dist > repel/2.0 {
                     if !settings.repel_on {
                         scalar = 0.0;
                     } else {
-                        scalar = -f; // / rel_dist;
+                        scalar = -(f * a) / rel_dist/repel;
                     }
+                } else {
+                    scalar = -f;
                 }
                 impulse += vector * scalar;
                 return true;
