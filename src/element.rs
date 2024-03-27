@@ -55,12 +55,14 @@ pub struct Element {
 impl Physical for Element {
     fn new(position: Vec2, shape: SharedShape, damping: f32, stroke: Option<Color>, fill: Option<Color>, random_vel: bool, physics: &mut Physics) -> Self {
         let settings = get_settings();
-        let types_num = settings.particle_types;
-        let colors = vec![
-            RED, GREEN, BLUE, YELLOW, ORANGE, MAGENTA, DARKGREEN, PURPLE, 
-            PINK, VIOLET, DARKBLUE, WHITE, SKYBLUE, LIME, DARKPURPLE, 
-            BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY, 
-        ];
+        //let types_num = settings.particle_types;
+        let colors = physics.types.colors.clone();
+        let types_num = colors.len();
+        //let colors = vec![
+        //    RED, GREEN, BLUE, YELLOW, ORANGE, MAGENTA, DARKGREEN, PURPLE, 
+        //    PINK, VIOLET, DARKBLUE, WHITE, SKYBLUE, LIME, DARKPURPLE, 
+        //    BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY, 
+        //];
         let key = gen_range(u64::MIN, u64::MAX);
         let t = rand::gen_range(0, types_num);
         /* let t: usize = match fix_type {

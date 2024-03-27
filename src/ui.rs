@@ -243,7 +243,7 @@ impl UI {
                 column[1].set_min_size(UIVec2::new(120., 25.));
                 let mut particle_types = settings.particle_types;
                 column[0].label(RichText::new("PARTICLE TYPES").color(Color32::LIGHT_BLUE).strong());
-                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut particle_types, 1..=19)).changed() {
+                if column[1].add_sized(vec2(125., 25.), Slider::new(&mut particle_types, 1..=50)).changed() {
                     settings.particle_types = particle_types;
                     set_settings(settings);
                 }

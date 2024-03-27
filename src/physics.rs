@@ -181,6 +181,29 @@ impl Physics {
         return self.types.get_type(id);
     }
 
+    fn get_in_range(&self, rbh: RigidBodyHandle, pos: &Vec2, radius: f32) -> Vec<RigidBodyHandle> {
+        let mut particles: Vec<RigidBodyHandle> = vec![];
+        let field = Ball::new(radius);
+        let location = make_isometry(pos.x, pos.y, 0.0);
+        let filter = QueryFilter {
+            flags: QueryFilterFlags::ONLY_DYNAMIC | QueryFilterFlags::EXCLUDE_SENSORS,
+            groups: None,
+            exclude_collider: None,
+            exclude_rigid_body: Some(rbh),
+            ..Default::default()
+        };
+        self.query_pipeline.intersections_with_shape(&self.rigid_bodies, &self.colliders, &location, &field, filter,
+            |collided| {
+                self.colliders.get(collided).inspect(|collider| {
+                    collider.parent().inspect(|rbh2| {
+                        particles.push(rbh2.clone());
+                    });
+                });
+                return true;
+        });
+        return particles;
+    }
+
     pub fn field_react(&mut self, position: Vec2, _size: f32, p_type: u128, handle: RigidBodyHandle) {
         let settings = get_settings();
         let particle_type0 = self.types.get_type(p_type);

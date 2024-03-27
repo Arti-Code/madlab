@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use macroquad::color::colors;
 use macroquad::rand::rand;
 use macroquad::{color::Color, rand}; 
 use macroquad::prelude::*;
@@ -44,26 +45,47 @@ impl PhysicsType {
 }
 
 pub struct PhysicsTypes {
-    types: HashMap<u128, PhysicsType>,
+    pub types: HashMap<u128, PhysicsType>,
+    pub colors: Vec<Color>,
 }
 
 impl PhysicsTypes {
 
     pub fn random() -> Self {
         let mut types: HashMap<u128, PhysicsType> = HashMap::new();
-        let colors = vec![RED, GREEN, BLUE, YELLOW, ORANGE, MAGENTA, DARKGREEN, PURPLE, PINK, VIOLET, DARKBLUE, WHITE, SKYBLUE, LIME, DARKPURPLE, BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY ];
-        for n in 0..colors.len() {
+        let num = get_settings().particles_num;
+        //let colors = vec![RED, GREEN, BLUE, YELLOW, ORANGE, MAGENTA, DARKGREEN, PURPLE, PINK, VIOLET, DARKBLUE, WHITE, SKYBLUE, LIME, DARKPURPLE, BROWN, DARKBROWN, DARKGRAY, LIGHTGRAY ];
+        let colors = Self::generate_colors(num);
+        for n in 0..colors.len()-1 {
             //let action: f32 = rand::gen_range(-1.0, 1.0);
             let type_id = n as u128;
             let color = colors[n];
             let t = PhysicsType::new(type_id, color);
             types.insert(type_id, t);
         }
-        Self { types }
+        Self { types, colors }
     }
 
     pub fn get_type(&self, id: u128) -> &PhysicsType {
         return self.types.get(&id).unwrap();
+    }
+
+    fn generate_colors(n: usize) -> Vec<Color> {
+        let mut colors: Vec<Color> = Vec::new();
+        let root = (n as f64).powf(1.0/3.0) as i32;
+        //let step = (1.0/root) as f32;
+
+        for _ in 0..n {
+            let ir = rand::gen_range(0, root);
+            let ig = rand::gen_range(0, root);
+            let ib = rand::gen_range(0, root);
+            let r = ir as f32 / (root as f32);
+            let g = ig as f32 / (root as f32);
+            let b = ib as f32 / (root as f32);
+            let color = Color::new(r, g, b, 1.0);
+            colors.push(color);
+        }
+        return colors;
     }
 
 }
