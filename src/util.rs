@@ -12,6 +12,10 @@ pub fn random_unit() -> f32 {
     return rand::gen_range(-1.0, 1.0);
 }
 
+pub fn random_unit_unsigned() -> f32 {
+    return rand::gen_range(0.0, 1.0);
+}
+
 pub fn random_position(x_max: f32, y_max: f32) -> Vec2 {
     let x = rand::gen_range(0.0, x_max);
     let y = rand::gen_range(0.0, y_max);

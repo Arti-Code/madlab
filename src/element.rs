@@ -22,26 +22,29 @@ pub trait Physical {
     fn add_to_physic_space(position: &Vec2, rotation: f32, shape: SharedShape, random_vel: bool, damping: f32, physics: &mut Physics, p_type: u128) -> RigidBodyHandle;
     fn draw(&self, display_mode: DisplayMode, physics: &Physics);
     fn draw_joint(&self, physics: &Physics);
+    fn react(&mut self, physics: &mut Physics);
 }
 
 pub trait Reactive {
     fn react(&mut self, physics: &mut Physics);
 }
 
-impl Reactive for Element {
+/* impl Reactive for Element {
 
     fn react(&mut self, physics: &mut Physics) {
         let settings = get_settings();
         physics.field_react(self.pos, self.size,  self.physics_type, self.rigid_handle);
     }
 
-}
+} */
 
 pub struct Element {
     pub key: u64,
     pub pos: Vec2,
     pub rot: f32,
     pub shape: SharedShape,
+    pub field: f32,
+    pub force: f32,
     stroke_color: Option<Color>,
     fill_color: Color,
     rigid_handle: RigidBodyHandle,
@@ -57,6 +60,7 @@ impl Physical for Element {
         let settings = get_settings();
         //let types_num = settings.particle_types;
         let colors = physics.types.colors.clone();
+
         let types_num = colors.len();
         //let colors = vec![
         //    RED, GREEN, BLUE, YELLOW, ORANGE, MAGENTA, DARKGREEN, PURPLE, 
@@ -69,7 +73,8 @@ impl Physical for Element {
             None => rand::gen_range(0, types_num),
             Some(t) => t as usize,
         }; */
-        
+        let types: Vec<(f32, Color, f32)> = vec![(-1.0_f32, RED, 0.5_f32), (0.0_f32, BLUE, 1.0_f32), (1.0_f32, GREEN, 1.5_f32)];
+        let (force, color, field) = types.choose().unwrap();
         //let p_type = physics.types.types.get(&(t as u128)).unwrap();
         let c =  colors.get(t as usize).unwrap();
         let rbh = Self::add_to_physic_space(&position, 0.0, shape.clone(), random_vel, damping, physics, t as u128);
@@ -79,8 +84,10 @@ impl Physical for Element {
             pos: position,
             rot: 0.0,
             shape: shape.clone(),
+            field: *field,
+            force: *force as f32,
             stroke_color: stroke,
-            fill_color: *c,
+            fill_color: *color,
             rigid_handle: rbh,
             joint: None,
             physics_type: t as u128, 
@@ -96,7 +103,7 @@ impl Physical for Element {
         return rbh;
     } 
 
-    fn update(&mut self, physics: &mut Physics) {
+/*     fn update(&mut self, physics: &mut Physics) {
         //self.update_motor(physics);
         let physics_data = physics.get_physics_data(self.rigid_handle);
         self.pos = physics_data.position;
@@ -119,6 +126,29 @@ impl Physical for Element {
             self.timer -= PRECISION;
             self.react(physics);
         } */
+    } */
+
+    fn update(&mut self, physics: &mut Physics) {
+        let physics_data = physics.get_physics_data(self.rigid_handle);
+        self.pos = physics_data.position;
+        self.rot = physics_data.rotation;
+        if let Some(ek) = physics_data.kin_eng {
+            self.energy = ek;
+        } 
+        match physics.rigid_bodies.get_mut(self.rigid_handle) {
+            Some(body) => {
+                self.out_of_edges(body);
+            }
+            None => {
+                warn!("can't find rigid body!");
+            }
+        }
+        self.react(physics);
+    }
+
+    fn react(&mut self, physics: &mut Physics) {
+        let particles = physics.get_in_range(self.rigid_handle, &self.pos, self.field);
+        
     }
 
     fn draw(&self, display_mode: DisplayMode, physics: &Physics) {

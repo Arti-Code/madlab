@@ -181,7 +181,7 @@ impl Physics {
         return self.types.get_type(id);
     }
 
-    fn get_in_range(&self, rbh: RigidBodyHandle, pos: &Vec2, radius: f32) -> Vec<RigidBodyHandle> {
+    pub fn get_in_range(&self, rbh: RigidBodyHandle, pos: &Vec2, radius: f32) -> Vec<RigidBodyHandle> {
         let mut particles: Vec<RigidBodyHandle> = vec![];
         let field = Ball::new(radius);
         let location = make_isometry(pos.x, pos.y, 0.0);
